@@ -39,3 +39,7 @@ sealed trait LowPriorityMaterialize:
   given materializeProduct: [A] => (productOf: Mirror.ProductOf[A]) => Materialize[productOf.MirroredElemTypes] => Materialize[A]:
     override type Out = A
     override def apply(): A = productOf.fromTuple(Materialize[productOf.MirroredElemTypes]())
+
+  given materializeSingletonSum: [A, S <: A] => SingletonSum.Aux[A, S] => (matSingleton: Materialize[S]) => Materialize[A]:
+    override type Out = S
+    override def apply(): S = matSingleton()

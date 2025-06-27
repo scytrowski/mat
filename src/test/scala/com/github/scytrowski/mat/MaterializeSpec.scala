@@ -76,10 +76,17 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
     materializeOpt[MultipleElementsProduct["abc", MultipleElementsProduct[true, 98.32, 'p'], 19]].value mustBe MultipleElementsProduct("abc", MultipleElementsProduct(true, 98.32, 'p'), 19)
   }
 
+  behavior of "sums"
+
+  it should "materialize singleton sum" in {
+    materializeOpt[SingletonSum].value mustBe SingletonSumVariant
+  }
+
   private case object EmptyProduct
-
   private case class SingleElementProduct[A](a: A)
-
   private case class MultipleElementsProduct[A, B, C](a: A, b: B, c: C)
+
+  private sealed trait SingletonSum
+  private case object SingletonSumVariant extends SingletonSum
 
 }
