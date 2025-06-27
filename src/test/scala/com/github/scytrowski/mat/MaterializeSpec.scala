@@ -8,6 +8,10 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
 
   behavior of "constants"
 
+  it should "materialize unit" in {
+    materializeOpt[Unit].value mustBe ()
+  }
+
   it should "materialize constant boolean" in {
     materializeOpt[true].value mustBe true
   }
