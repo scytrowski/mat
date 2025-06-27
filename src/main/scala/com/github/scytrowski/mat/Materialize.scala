@@ -16,5 +16,14 @@ inline def materializeOpt[A]: Option[A] =
 sealed trait Materialize[A]:
   def apply(): A
 
-given materializeConstValue: [A: ValueOf] => Materialize[A]:
+object Materialize:
+  def apply[A](using mat: Materialize[A]): Materialize[A] = mat
+
+given materializeConstValue: [A : ValueOf] => Materialize[A]:
   override def apply(): A = valueOf[A]
+
+given materializeEmptyTuple: Materialize[EmptyTuple]:
+  override def apply(): EmptyTuple = EmptyTuple
+
+given materializeTuple: [H : Materialize, T <: Tuple : Materialize] => Materialize[H *: T]:
+  override def apply(): H *: T = Materialize[H]() *: Materialize[T]()
