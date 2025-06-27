@@ -54,4 +54,32 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
     materializeOpt[(15, 13.15, ('a', true, "d"), false)].value mustBe (15, 13.15, ('a', true, "d"), false)
   }
 
+  behavior of "products"
+
+  it should "materialize empty product" in {
+    materializeOpt[EmptyProduct.type].value mustBe EmptyProduct
+  }
+
+  it should "materialize product with single element" in {
+    materializeOpt[SingleElementProduct[5]].value mustBe SingleElementProduct(5)
+  }
+
+  it should "materialize product with multiple elements" in {
+    materializeOpt[MultipleElementsProduct[false, 'z', "test"]].value mustBe MultipleElementsProduct(false, 'z', "test")
+  }
+
+  it should "materialize nested empty product" in {
+    materializeOpt[MultipleElementsProduct[25, EmptyProduct.type, 'p']].value mustBe MultipleElementsProduct(25, EmptyProduct, 'p')
+  }
+
+  it should "materialize nested product" in {
+    materializeOpt[MultipleElementsProduct["abc", MultipleElementsProduct[true, 98.32, 'p'], 19]].value mustBe MultipleElementsProduct("abc", MultipleElementsProduct(true, 98.32, 'p'), 19)
+  }
+
+  private case object EmptyProduct
+
+  private case class SingleElementProduct[A](a: A)
+
+  private case class MultipleElementsProduct[A, B, C](a: A, b: B, c: C)
+
 }
