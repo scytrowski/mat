@@ -8,7 +8,7 @@ sealed trait SingletonSum[A]:
 object SingletonSum:
   type Aux[A, R <: A] = SingletonSum[A] { type Repr = R }
 
-given [A, S <: A] => SumOfElemTypesAux[A, S *: EmptyTuple] => SingletonSum[A]:
-  override type Repr = S
+  given [A, S <: A] => SumOfElemTypesAux[A, S *: EmptyTuple] => SingletonSum[A]:
+    override type Repr = S
 
-type SumOfElemTypesAux[A, T <: Tuple] = Mirror.SumOf[A] { type MirroredElemTypes = T }
+  private type SumOfElemTypesAux[A, T <: Tuple] = Mirror.SumOf[A] { type MirroredElemTypes = T }
