@@ -24,7 +24,7 @@ It provides a typeclass-based approach for turning types like tuples, literal ty
 ### Materialize a literal value
 
 ```scala
-import com.github.scytrowski.mat.*
+import io.github.scytrowski.mat.*
 
 val x: 42 = materialize[42]
 // x: 42
@@ -33,7 +33,7 @@ val x: 42 = materialize[42]
 ### Materialize a tuple
 
 ```scala
-import com.github.scytrowski.mat.*
+import io.github.scytrowski.mat.*
 
 val x: (true, 'd', "abc") = materialize[(true, 'd', "abc")]
 // x: (true, 'd', "abc")
@@ -42,7 +42,7 @@ val x: (true, 'd', "abc") = materialize[(true, 'd', "abc")]
 ### Materialize a case object
 
 ```scala
-import com.github.scytrowski.mat.*
+import io.github.scytrowski.mat.*
 
 case object SomeObject
 
@@ -53,7 +53,7 @@ val x: SomeObject.type = materialize[SomeObject.type]
 ### Materialize a case class
 
 ```scala
-import com.github.scytrowski.mat.*
+import io.github.scytrowski.mat.*
 
 case class SomeClass[A](a: A)
 
@@ -64,9 +64,10 @@ val x: SomeClass[15] = materialize[SomeClass[15]]
 ### Materialize a singleton ADT variant
 
 ```scala
-import com.github.scytrowski.mat.*
+import io.github.scytrowski.mat.*
 
 sealed trait SomeADT
+
 case object SingletonVariant extends SomeADT
 
 val x: SingletonVariant.type = materialize[SomeADT]
@@ -76,9 +77,9 @@ val x: SingletonVariant.type = materialize[SomeADT]
 ### Require a materializable type
 
 ```scala
-import com.github.scytrowski.mat.*
+import io.github.scytrowski.mat.*
 
-def doSomethingWithMaterializableType[A : Materializable] = ???
+def doSomethingWithMaterializableType[A: Materializable] = ???
 ```
 
 ---

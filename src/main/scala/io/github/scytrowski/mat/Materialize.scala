@@ -1,4 +1,4 @@
-package com.github.scytrowski.mat
+package io.github.scytrowski.mat
 
 import scala.compiletime.{error, summonFrom}
 import scala.deriving.Mirror
