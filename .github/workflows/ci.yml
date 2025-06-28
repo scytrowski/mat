@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up JDK
+        uses: actions/setup-java@v3
+        with:
+          distribution: corretto
+          java-version: 24
+
+      - name: Set up sbt
+        uses: coursier/setup-action@v1
+
+      - name: Cache
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.ivy2/cache
+            ~/.sbt
+            ~/.coursier
+          key: ${{ runner.os }}-sbt-${{ hashFiles('**/build.sbt') }}
+
+      - name: Run tests
+        run: sbt test
