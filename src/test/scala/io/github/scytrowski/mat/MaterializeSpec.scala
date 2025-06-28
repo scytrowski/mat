@@ -63,6 +63,10 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
     )
   }
 
+  it should "not materialize tuple with non materializable element" in {
+    materializeOpt[(23, String, 'a')] mustBe empty
+  }
+
   behavior of "products"
 
   it should "materialize empty product" in {
@@ -97,10 +101,37 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
     )
   }
 
+  it should "not materialize product with non materializable element" in {
+    materializeOpt[MultipleElementsProduct["def", false, Int]] mustBe empty
+  }
+
   behavior of "sums"
 
   it should "materialize singleton sum" in {
     materializeOpt[SingletonSum].value mustBe SingletonSumVariant
+  }
+
+  it should "not materialize sum with multiple variants" in {
+    materializeOpt[SumWithMultipleVariants] mustBe empty
+  }
+
+  behavior of "other types"
+
+  it should "materialize type lambda resulting in constant type" in {
+    materializeOpt[TypeLambda[true]].value mustBe Some("test")
+    materializeOpt[TypeLambda[false]].value mustBe None
+  }
+
+  it should "not materialize abstract type" in {
+    materializeOpt[String] mustBe empty
+  }
+
+  it should "not materialize abstract generic type with abstract type parameter" in {
+    materializeOpt[Option[Int]] mustBe empty
+  }
+
+  it should "not materialize abstract generic type with constant type parameter" in {
+    materializeOpt[List[5]] mustBe empty
   }
 
   private case object EmptyProduct
@@ -109,5 +140,15 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
 
   private sealed trait SingletonSum
   private case object SingletonSumVariant extends SingletonSum
+
+  private sealed trait SumWithMultipleVariants
+  private case object FirstVariant extends SumWithMultipleVariants
+  private case object SecondVariant extends SumWithMultipleVariants
+  private case object ThirdVariant extends SumWithMultipleVariants
+
+  private type TypeLambda[C <: Boolean] <: Option[String] =
+    C match
+      case true  => Some["test"]
+      case false => None.type
 
 }
