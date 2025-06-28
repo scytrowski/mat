@@ -80,3 +80,11 @@ import com.github.scytrowski.mat.*
 
 def doSomethingWithMaterializableType[A : Materializable] = ???
 ```
+
+---
+
+## 🚧 TODO
+
+- [ ] Support intersection types - e.g.: `5 & Int` should materialize as `5`
+- [ ] Support union types - e.g.: `5 | String` should materialize as `5`
+- [ ] Support nested singleton ADTs
