@@ -47,11 +47,20 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
   }
 
   it should "materialize nested empty tuple" in {
-    materializeOpt[("abc", EmptyTuple, 'c')].value mustBe ("abc", EmptyTuple, 'c')
+    materializeOpt[("abc", EmptyTuple, 'c')].value mustBe (
+      "abc",
+      EmptyTuple,
+      'c'
+    )
   }
 
   it should "materialize nested tuple" in {
-    materializeOpt[(15, 13.15, ('a', true, "d"), false)].value mustBe (15, 13.15, ('a', true, "d"), false)
+    materializeOpt[(15, 13.15, ('a', true, "d"), false)].value mustBe (
+      15,
+      13.15,
+      ('a', true, "d"),
+      false
+    )
   }
 
   behavior of "products"
@@ -65,15 +74,27 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
   }
 
   it should "materialize product with multiple elements" in {
-    materializeOpt[MultipleElementsProduct[false, 'z', "test"]].value mustBe MultipleElementsProduct(false, 'z', "test")
+    materializeOpt[
+      MultipleElementsProduct[false, 'z', "test"]
+    ].value mustBe MultipleElementsProduct(false, 'z', "test")
   }
 
   it should "materialize nested empty product" in {
-    materializeOpt[MultipleElementsProduct[25, EmptyProduct.type, 'p']].value mustBe MultipleElementsProduct(25, EmptyProduct, 'p')
+    materializeOpt[
+      MultipleElementsProduct[25, EmptyProduct.type, 'p']
+    ].value mustBe MultipleElementsProduct(25, EmptyProduct, 'p')
   }
 
   it should "materialize nested product" in {
-    materializeOpt[MultipleElementsProduct["abc", MultipleElementsProduct[true, 98.32, 'p'], 19]].value mustBe MultipleElementsProduct("abc", MultipleElementsProduct(true, 98.32, 'p'), 19)
+    materializeOpt[MultipleElementsProduct[
+      "abc",
+      MultipleElementsProduct[true, 98.32, 'p'],
+      19
+    ]].value mustBe MultipleElementsProduct(
+      "abc",
+      MultipleElementsProduct(true, 98.32, 'p'),
+      19
+    )
   }
 
   behavior of "sums"

@@ -11,4 +11,6 @@ object SingletonSum:
   given [A, S <: A] => SumOfElemTypesAux[A, S *: EmptyTuple] => SingletonSum[A]:
     override type Repr = S
 
-  private type SumOfElemTypesAux[A, T <: Tuple] = Mirror.SumOf[A] { type MirroredElemTypes = T }
+  private type SumOfElemTypesAux[A, T <: Tuple] = Mirror.SumOf[A] {
+    type MirroredElemTypes = T
+  }
