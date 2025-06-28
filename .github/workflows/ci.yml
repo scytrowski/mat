@@ -22,7 +22,7 @@ jobs:
           java-version: 24
 
       - name: Set up sbt
-        uses: coursier/setup-action@v1
+        uses: sbt/setup-sbt@v1
 
       - name: Cache
         uses: actions/cache@v3
