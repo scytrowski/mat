@@ -89,3 +89,11 @@ def doSomethingWithMaterializableType[A: Materialize] = ???
 - [ ] Support intersection types - e.g.: `5 & Int` should materialize as `5`
 - [ ] Support union types - e.g.: `5 | String` should materialize as `5`
 - [ ] Support nested singleton ADTs
+
+---
+
+## 📄 License
+
+This project is licensed under the [MIT License](LICENSE).
+
+You are free to use, copy, modify, and distribute it with attribution.
