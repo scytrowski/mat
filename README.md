@@ -79,7 +79,7 @@ val x: SingletonVariant.type = materialize[SomeADT]
 ```scala
 import io.github.scytrowski.mat.*
 
-def doSomethingWithMaterializableType[A: Materializable] = ???
+def doSomethingWithMaterializableType[A: Materialize] = ???
 ```
 
 ---
