@@ -67,6 +67,28 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
     materializeOpt[(23, String, 'a')] mustBe empty
   }
 
+  behavior of "named tuples"
+
+  it should "materialize named tuple with single element" in {
+    materializeOpt[(a: 5)].value mustBe ((a = 5))
+  }
+
+  it should "materialize named tuple with multiple elements" in {
+    materializeOpt[(a: false, b: 'v', c: "ghi")].value mustBe ((a = false, b = 'v', c = "ghi"))
+  }
+
+  it should "materialize nested named tuple" in {
+    materializeOpt[(a: 'u', b: 37, c: (d: 98.76, e: false))].value mustBe ((
+      a = 'u',
+      b = 37,
+      c = (d = 98.76, e = false)
+    ))
+  }
+
+  it should "not materialize named tuple with non materializable element" in {
+    materializeOpt[(a: 3, b: "aaa", c: Int)] mustBe empty
+  }
+
   behavior of "products"
 
   it should "materialize empty product" in {
@@ -115,6 +137,20 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
     materializeOpt[SumWithMultipleVariants] mustBe empty
   }
 
+  behavior of "enums"
+
+  it should "materialize enum with single variant" in {
+    materializeOpt[SingleVariantEnum].value mustBe SingleVariantEnum.Variant
+  }
+
+  it should "materialize enum variant" in {
+    materializeOpt[SingleVariantEnum.Variant.type].value mustBe SingleVariantEnum.Variant
+  }
+
+  it should "not materialize enum with multiple variants" in {
+    materializeOpt[MultipleVariantsEnum] mustBe empty
+  }
+
   behavior of "other types"
 
   it should "materialize type lambda resulting in constant type" in {
@@ -145,6 +181,16 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
   private case object FirstVariant extends SumWithMultipleVariants
   private case object SecondVariant extends SumWithMultipleVariants
   private case object ThirdVariant extends SumWithMultipleVariants
+
+  private enum SingleVariantEnum {
+    case Variant
+  }
+
+  private enum MultipleVariantsEnum {
+    case FirstVariant
+    case SecondVariant
+    case ThirdVariant
+  }
 
   private type TypeLambda[C <: Boolean] <: Option[String] =
     C match
