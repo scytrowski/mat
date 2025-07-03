@@ -1,6 +1,11 @@
 ThisBuild / organization := "io.github.scytrowski"
-ThisBuild / version := "0.1.0"
+ThisBuild / version := {
+  val tag = sys.env.getOrElse("GITHUB_REF", "")
+  val v = "refs/tags/v"
+  if (tag.startsWith(v)) tag.stripPrefix(v) else "SNAPSHOT"
+}
 ThisBuild / scalaVersion := "3.7.1"
+ThisBuild / description := "Scala 3 library for type-level materialization of constant values, tuples, products and singleton sums"
 ThisBuild / licenses := Seq("MIT" -> url("https://github.com/scytrowski/mat/blob/master/LICENSE"))
 ThisBuild / homepage := Some(url("https://github.com/scytrowski/mat"))
 ThisBuild / scmInfo := Some(
