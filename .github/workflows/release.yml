@@ -1,0 +1,37 @@
+on:
+  release:
+    types:
+      - published
+
+jobs:
+  release:
+    name: Release package
+    runs-on: ubuntu-latest
+
+    if: startsWith(github.event.release.tag_name, 'v')
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up JDK
+        uses: actions/setup-java@v3
+        with:
+          distribution: corretto
+          java-version: 24
+
+      - name: Set up sbt
+        uses: sbt/setup-sbt@v1
+
+      - name: Import GPG key
+        run: |
+          echo "$PGP_SECRET" | base64 --decode | gpg --batch --import
+        env:
+          PGP_SECRET: ${{ secrets.PGP_SECRET }}
+
+      - name: Publish to Sonatype
+        run: sbt ci-release
+        env:
+          PGP_PASSPHRASE: ${{ secrets.PGP_PASSPHRASE }}
+          SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
+          SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
