@@ -1,6 +1,7 @@
 # mat
 
 [![Scala](https://img.shields.io/badge/Scala-3.7.1-red.svg)](https://www.scala-lang.org)
+[![Maven Central](https://img.shields.io/maven-central/v/io.github.scytrowski/mat_3)](https://mvnrepository.com/artifact/io.github.scytrowski/mat_3)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 **`mat`** is a lightweight Scala 3 library for materializing types into values at compile time.
