@@ -74,6 +74,24 @@ val x: SingletonVariant.type = materialize[SomeADT]
 // x: SingletonVariant
 ```
 
+### Provide custom materialization logic
+
+```scala
+import io.github.scytrowski.mat.*
+
+sealed abstract class SomeClass
+
+object SomeClass:
+  val instance: SomeClass = new SomeClass {}
+
+given CustomMaterialize[SomeClass]:
+  override type Out = SomeClass
+  override def apply(): SomeClass = SomeClass.instance
+
+val x: SomeClass = materialize[SomeClass]
+// x: SomeClass.instance
+```
+
 ### Require a materializable type
 
 ```scala

@@ -74,7 +74,11 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
   }
 
   it should "materialize named tuple with multiple elements" in {
-    materializeOpt[(a: false, b: 'v', c: "ghi")].value mustBe ((a = false, b = 'v', c = "ghi"))
+    materializeOpt[(a: false, b: 'v', c: "ghi")].value mustBe ((
+      a = false,
+      b = 'v',
+      c = "ghi"
+    ))
   }
 
   it should "materialize nested named tuple" in {
@@ -144,11 +148,21 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
   }
 
   it should "materialize enum variant" in {
-    materializeOpt[SingleVariantEnum.Variant.type].value mustBe SingleVariantEnum.Variant
+    materializeOpt[
+      SingleVariantEnum.Variant.type
+    ].value mustBe SingleVariantEnum.Variant
   }
 
   it should "not materialize enum with multiple variants" in {
     materializeOpt[MultipleVariantsEnum] mustBe empty
+  }
+
+  behavior of "custom materialization"
+
+  it should "materialize type using custom implementation" in {
+    materializeOpt[
+      ClassWithCustomMaterialization
+    ].value mustBe ClassWithCustomMaterialization.instance
   }
 
   behavior of "other types"
@@ -191,6 +205,17 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
     case SecondVariant
     case ThirdVariant
   }
+
+  private sealed abstract class ClassWithCustomMaterialization
+
+  private object ClassWithCustomMaterialization:
+    val instance: ClassWithCustomMaterialization =
+      new ClassWithCustomMaterialization {}
+
+  private given CustomMaterialize[ClassWithCustomMaterialization]:
+    override type Out = ClassWithCustomMaterialization
+    override def apply(): ClassWithCustomMaterialization =
+      ClassWithCustomMaterialization.instance
 
   private type TypeLambda[C <: Boolean] <: Option[String] =
     C match
