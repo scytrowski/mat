@@ -14,6 +14,7 @@ It provides a typeclass-based approach for turning types like tuples, literal ty
 
 - Materialize literal types like `5`, `"hello"`, `true`
 - Recursively materialize tuples: `(1, "abc", true)`
+- Recursively materialize named tuples: `(a = 1, b = "abc", c = true)`
 - Materialize case classes via `Mirror.ProductOf`
 - Materialize singleton sealed trait based ADTs via `Mirror.SumOf`
 - Safe fallback with `materializeOpt[A]` returning `Option`
@@ -38,6 +39,15 @@ import io.github.scytrowski.mat.*
 
 val x: (true, 'd', "abc") = materialize[(true, 'd', "abc")]
 // x: (true, 'd', "abc")
+```
+
+### Materialize a named tuple
+
+```scala
+import io.github.scytrowski.mat.*
+
+val x: (a: true, b: 'd', c: "abc") = materialize[(a: true, b: 'd', c: "abc")]
+// x: (a = true, b = 'd', c = "abc")
 ```
 
 ### Materialize a case object
