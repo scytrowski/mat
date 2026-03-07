@@ -1,4 +1,4 @@
-package io.github.scytrowski.mat
+package me.cytrowski.mat
 
 import org.scalatest.OptionValues
 import org.scalatest.flatspec.AnyFlatSpec

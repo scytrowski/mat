@@ -1,4 +1,4 @@
-ThisBuild / organization := "io.github.scytrowski"
+ThisBuild / organization := "me.cytrowski"
 ThisBuild / version := {
   val tag = sys.env.getOrElse("GITHUB_REF", "")
   val v = "refs/tags/v"
@@ -21,7 +21,7 @@ ThisBuild / developers := List(
     id = "scytrowski",
     name = "Szymon Cytrowski",
     email = "szym.cytrowski@gmail.com",
-    url = url("https://github.com/scytrowski")
+    url = url("https://cytrowski.me")
   )
 )
 ThisBuild / versionScheme := Some("early-semver")

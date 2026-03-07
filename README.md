@@ -26,7 +26,7 @@ It provides a typeclass-based approach for turning types like tuples, literal ty
 ### Materialize a literal value
 
 ```scala
-import io.github.scytrowski.mat.*
+import me.cytrowski.mat.*
 
 val x: 42 = materialize[42]
 // x: 42
@@ -35,7 +35,7 @@ val x: 42 = materialize[42]
 ### Materialize a tuple
 
 ```scala
-import io.github.scytrowski.mat.*
+import me.cytrowski.mat.*
 
 val x: (true, 'd', "abc") = materialize[(true, 'd', "abc")]
 // x: (true, 'd', "abc")
@@ -44,7 +44,7 @@ val x: (true, 'd', "abc") = materialize[(true, 'd', "abc")]
 ### Materialize a named tuple
 
 ```scala
-import io.github.scytrowski.mat.*
+import me.cytrowski.mat.*
 
 val x: (a: true, b: 'd', c: "abc") = materialize[(a: true, b: 'd', c: "abc")]
 // x: (a = true, b = 'd', c = "abc")
@@ -53,7 +53,7 @@ val x: (a: true, b: 'd', c: "abc") = materialize[(a: true, b: 'd', c: "abc")]
 ### Materialize a case object
 
 ```scala
-import io.github.scytrowski.mat.*
+import me.cytrowski.mat.*
 
 case object SomeObject
 
@@ -64,7 +64,7 @@ val x: SomeObject.type = materialize[SomeObject.type]
 ### Materialize a case class
 
 ```scala
-import io.github.scytrowski.mat.*
+import me.cytrowski.mat.*
 
 case class SomeClass[A](a: A)
 
@@ -75,7 +75,7 @@ val x: SomeClass[15] = materialize[SomeClass[15]]
 ### Materialize a singleton ADT variant
 
 ```scala
-import io.github.scytrowski.mat.*
+import me.cytrowski.mat.*
 
 sealed trait SomeADT
 
@@ -88,7 +88,7 @@ val x: SingletonVariant.type = materialize[SomeADT]
 ### Provide custom materialization logic
 
 ```scala
-import io.github.scytrowski.mat.*
+import me.cytrowski.mat.*
 
 sealed abstract class SomeClass
 
@@ -96,8 +96,8 @@ object SomeClass:
   val instance: SomeClass = new SomeClass {}
 
 given CustomMaterialize[SomeClass]:
-  override type Out = SomeClass
-  override def apply(): SomeClass = SomeClass.instance
+override type Out = SomeClass
+override def apply(): SomeClass = SomeClass.instance
 
 val x: SomeClass = materialize[SomeClass]
 // x: SomeClass.instance
@@ -106,7 +106,7 @@ val x: SomeClass = materialize[SomeClass]
 ### Require a materializable type
 
 ```scala
-import io.github.scytrowski.mat.*
+import me.cytrowski.mat.*
 
 def doSomethingWithMaterializableType[A: Materialize] = ???
 ```

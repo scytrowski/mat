@@ -1,4 +1,4 @@
-package io.github.scytrowski.mat
+package me.cytrowski.mat
 
 import scala.compiletime.{error, summonFrom}
 import scala.deriving.Mirror
@@ -32,7 +32,7 @@ transparent inline def materializeOpt[A]: Any =
   *   - It is a sum type (e.g., a sealed trait or enum) with exactly one
   *     materializable variant
   *   - There exists a
-  *     {@link io.github.scytrowski.mat.CustomMaterialize CustomMaterialize[A]}
+  *     {@link me.cytrowski.mat.CustomMaterialize CustomMaterialize[A]}
   *
   * The `apply()` method returns a value of type `Out`, which is guaranteed to
   * be a subtype of `A`.

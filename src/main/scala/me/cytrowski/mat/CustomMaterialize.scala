@@ -1,4 +1,4 @@
-package io.github.scytrowski.mat
+package me.cytrowski.mat
 
 /** Type class allowing to extend or override the default materialization logic
   * for values of type `A`.
