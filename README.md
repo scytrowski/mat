@@ -4,6 +4,8 @@
 [![Maven Central](https://img.shields.io/maven-central/v/io.github.scytrowski/mat_3)](https://mvnrepository.com/artifact/io.github.scytrowski/mat_3)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
+⚠️ Artifact moved from `io.github.scytrowski.mat` to `me.cytrowski.mat`
+
 **`mat`** is a lightweight Scala 3 library for materializing types into values at compile time.
 
 It provides a typeclass-based approach for turning types like tuples, literal types, or case classes into values using `inline` and `Mirror`.
