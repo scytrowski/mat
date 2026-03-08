@@ -1,7 +1,7 @@
 # mat
 
 [![Scala](https://img.shields.io/badge/Scala-3.8.2-red.svg)](https://www.scala-lang.org)
-[![Maven Central](https://img.shields.io/maven-central/v/io.github.scytrowski/mat_3)](https://mvnrepository.com/artifact/io.github.scytrowski/mat_3)
+[![MvnRepository](https://badges.mvnrepository.com/badge/me.cytrowski/mat/badge.svg?label=MvnRepository&color=green)](https://mvnrepository.com/artifact/me.cytrowski/mat)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 ⚠️ Artifact moved from `io.github.scytrowski.mat` to `me.cytrowski.mat`
