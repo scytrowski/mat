@@ -7,13 +7,15 @@ ThisBuild / version := {
 ThisBuild / scalaVersion := "3.8.4"
 ThisBuild / name := "mat"
 ThisBuild / description := "Scala 3 library for type-level materialization of constant values, tuples, products and singleton sums"
-ThisBuild / licenses := Seq("MIT" -> url("https://github.com/scytrowski/mat/blob/master/LICENSE"))
+ThisBuild / licenses := Seq(
+  "MIT" -> url("https://github.com/scytrowski/mat/blob/master/LICENSE")
+)
 ThisBuild / homepage := Some(url("https://github.com/scytrowski/mat"))
 ThisBuild / scmInfo := Some(
   ScmInfo(
     browseUrl = url("https://github.com/scytrowski/mat"),
-    connection = "scm:git:git@github.com:scytrowski/mat.git",
-    devConnection = Some("scm:git:git@github.com:scytrowski/mat.git")
+    connection = "scm:git:https://github.com/scytrowski/mat.git",
+    devConnection = Some("scm:git:https://github.com/scytrowski/mat.git")
   )
 )
 ThisBuild / developers := List(
