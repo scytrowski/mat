@@ -1,6 +1,6 @@
 # mat
 
-[![Scala](https://img.shields.io/badge/Scala-3.8.2-red.svg)](https://www.scala-lang.org)
+[![Scala](https://img.shields.io/badge/Scala-3.8.4-red.svg)](https://www.scala-lang.org)
 [![MvnRepository](https://badges.mvnrepository.com/badge/me.cytrowski/mat/badge.svg?label=MvnRepository&color=green)](https://mvnrepository.com/artifact/me.cytrowski/mat)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
