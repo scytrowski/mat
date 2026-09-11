@@ -29,6 +29,11 @@ private[mat] object MaterializeMacros:
         cause: MaterializeError
     )
     case UnsupportedSum(owner: String, variants: Int)
+    case UnsupportedSumVariant(
+        owner: String,
+        variantType: String,
+        cause: MaterializeError
+    )
     case MissingProductMirror(owner: String)
     case SingleVariant(
         owner: String,
@@ -48,6 +53,8 @@ private[mat] object MaterializeMacros:
         s"Field '$name' of $owner ($fieldType) cannot be materialized: ${cause.message}"
       case UnsupportedSum(owner, variants) =>
         s"Sum type $owner has $variants materializable variants; only sums with exactly one materializable variant can be materialized."
+      case UnsupportedSumVariant(owner, variantType, cause) =>
+        s"Sum type $owner cannot be materialized because variant $variantType cannot be materialized: ${cause.message}"
       case MissingProductMirror(owner) =>
         s"Product type $owner has no usable Mirror.ProductOf instance."
       case SingleVariant(owner, variantType, cause) =>
@@ -123,12 +130,21 @@ private[mat] object MaterializeMacros:
   private def unsupportedType[A: Type](using Quotes): MaterializeError =
     unsupportedType(quotes.reflect.TypeRepr.of[A].dealias)
 
+  private def displayType(using
+      quotes: Quotes
+  )(tpe: quotes.reflect.TypeRepr): String =
+    val shown = tpe.dealias.show
+    val prefix = "scala.NamedTupleDecomposition.DropNames["
+    if shown.startsWith(prefix) && shown.endsWith("]") then
+      shown.substring(prefix.length, shown.length - 1)
+    else shown
+
   private def unsupportedType(using
       Quotes
   )(
       tpe: quotes.reflect.TypeRepr
   ): MaterializeError =
-    MaterializeError.UnsupportedType(tpe.show)
+    MaterializeError.UnsupportedType(displayType(tpe))
 
   private def deriveValueOf[A: Type](using
       Quotes
@@ -364,7 +380,7 @@ private[mat] object MaterializeMacros:
                           MaterializeError.ProductField(
                             TypeRepr.of[A].show,
                             field.name,
-                            TypeRepr.of[fieldType].show,
+                            displayType(TypeRepr.of[fieldType]),
                             error
                           )
                         )
@@ -486,7 +502,31 @@ private[mat] object MaterializeMacros:
 
       successful match
         case result :: Nil if blockingFailures.isEmpty => Some(Right(result))
-        case Nil                                       =>
+        case result :: Nil                             =>
+          blockingFailures.headOption match
+            case Some((variantType, error)) =>
+              Some(
+                Left(
+                  MaterializeError.UnsupportedSumVariant(
+                    owner.show,
+                    variantType.show,
+                    error
+                  )
+                )
+              )
+            case None => Some(Right(result))
+        case Nil if blockingFailures.nonEmpty =>
+          val (variantType, error) = blockingFailures.head
+          Some(
+            Left(
+              MaterializeError.UnsupportedSumVariant(
+                owner.show,
+                variantType.show,
+                error
+              )
+            )
+          )
+        case Nil =>
           Some(
             Left(
               MaterializeError.UnsupportedSum(

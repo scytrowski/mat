@@ -603,11 +603,11 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
       "Sum type scala.Option[5] has 2 materializable variants; only sums with exactly one materializable variant can be materialized."
   }
 
-  it should "identify Option[Nothing] ambiguity" in {
+  it should "identify an unsupported Option[Nothing] variant" in {
     val errors = typeCheckErrors("materialize[Option[Nothing]]")
 
-    errors.map(_.message).find(_.contains("variants")).value mustBe
-      "Sum type scala.Option[scala.Nothing] has 1 materializable variants; only sums with exactly one materializable variant can be materialized."
+    errors.map(_.message).find(_.contains("variant scala.Some")).value mustBe
+      "Sum type scala.Option[scala.Nothing] cannot be materialized because variant scala.Some[scala.Nothing] cannot be materialized: Field 'value' of scala.Some[scala.Nothing] (scala.Nothing) cannot be materialized: Type scala.Nothing cannot be materialized. Supported forms are literal types, tuples, products, single-variant sums, or CustomMaterialize."
   }
 
   behavior of "other types"
