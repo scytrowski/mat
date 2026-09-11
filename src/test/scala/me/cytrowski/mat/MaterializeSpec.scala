@@ -14,6 +14,12 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
       .find(_.contains("cannot be materialized"))
       .value
 
+  private inline def sumDiagnostic(inline code: String): String =
+    typeCheckErrors(code)
+      .map(_.message)
+      .find(_.startsWith("Sum type"))
+      .value
+
   behavior of "constants"
 
   it should "materialize unit" in {
@@ -411,6 +417,21 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
     materializeOpt[MultipleVariantsEnum] mustBe empty
   }
 
+  it should "materialize compatible variants of a parameterized product enum" in {
+    materializeOpt[ParameterizedProductEnum[5]].value mustBe
+      ParameterizedProductEnum.Five(5)
+    materializeOpt[ParameterizedProductEnum["text"]].value mustBe
+      ParameterizedProductEnum.Text("text")
+    materializeOpt[ParameterizedProductEnum[Boolean]] mustBe None
+    materializeOpt[ParameterizedProductEnum[Any]] mustBe None
+  }
+
+  it should "materialize a generic product enum variant" in {
+    materializeOpt[GenericProductEnum[5]].value mustBe
+      GenericProductEnum.Value(5)
+    materializeOpt[GenericProductEnum[String]] mustBe None
+  }
+
   behavior of "custom materialization"
 
   it should "materialize type using custom implementation" in {
@@ -701,6 +722,21 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
       "Type scala.Any cannot be materialized. Supported forms are literal types, tuples, products, single-variant sums, or CustomMaterialize."
   }
 
+  it should "explain a parameterized enum without a compatible variant" in {
+    sumDiagnostic("materialize[ParameterizedProductEnum[Boolean]]") mustBe
+      "Sum type MaterializeSpec.this.ParameterizedProductEnum[scala.Boolean] has 0 materializable variants; only sums with exactly one materializable variant can be materialized."
+  }
+
+  it should "explain an ambiguous parameterized product enum" in {
+    sumDiagnostic("materialize[ParameterizedProductEnum[Any]]") mustBe
+      "Sum type MaterializeSpec.this.ParameterizedProductEnum[scala.Any] has 2 materializable variants; only sums with exactly one materializable variant can be materialized."
+  }
+
+  it should "explain an unsupported generic enum field" in {
+    diagnostic("materialize[GenericProductEnum[String]]") mustBe
+      "The only variant of MaterializeSpec.this.GenericProductEnum[scala.Predef.String] (MaterializeSpec.this.GenericProductEnum.Value[java.lang.String]) cannot be materialized: Field 'value' of MaterializeSpec.this.GenericProductEnum.Value[java.lang.String] (java.lang.String) cannot be materialized: Type java.lang.String cannot be materialized. Supported forms are literal types, tuples, products, single-variant sums, or CustomMaterialize."
+  }
+
   it should "not materialize abstract type" in {
     materializeOpt[String] mustBe empty
   }
@@ -806,6 +842,15 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
   private enum GenericEnum[+A] {
     case IntValue extends GenericEnum[Int]
     case BooleanValue extends GenericEnum[Boolean]
+  }
+
+  private enum ParameterizedProductEnum[+A] {
+    case Five(value: 5) extends ParameterizedProductEnum[5]
+    case Text(value: "text") extends ParameterizedProductEnum["text"]
+  }
+
+  private enum GenericProductEnum[A] {
+    case Value(value: A) extends GenericProductEnum[A]
   }
 
   private sealed abstract class ClassWithCustomMaterialization
