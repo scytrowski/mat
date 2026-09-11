@@ -678,6 +678,20 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
     materializeOpt[LiteralAlias].value mustBe 5
   }
 
+  it should "reuse materialization of repeated nested types" in {
+    materializeOpt[
+      MultipleElementsProduct[
+        SingleElementProduct[5],
+        SingleElementProduct[5],
+        SingleElementProduct[5]
+      ]
+    ].value mustBe MultipleElementsProduct(
+      SingleElementProduct(5),
+      SingleElementProduct(5),
+      SingleElementProduct(5)
+    )
+  }
+
   it should "not materialize an opaque type outside its defining scope" in {
     materializeOpt[OpaqueTypes.Value] mustBe None
   }

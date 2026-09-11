@@ -11,8 +11,14 @@ import scala.quoted.*
   * singleton variants use references to their companion modules.
   */
 private[mat] object MaterializeMacros:
+  private final case class DerivationCacheKey(
+      tpe: String,
+      activeTypes: List[String]
+  )
+
   private final class DerivationContext:
     val activeTypes = scala.collection.mutable.Set.empty[String]
+    val cache = scala.collection.mutable.Map.empty[DerivationCacheKey, Any]
 
   private enum MaterializeError:
     case UnsupportedType(tpe: String)
@@ -109,12 +115,26 @@ private[mat] object MaterializeMacros:
       quotes: Quotes,
       context: DerivationContext
   ): Either[MaterializeError, (quotes.reflect.TypeRepr, Expr[Any])] =
-    val key = quotes.reflect.TypeRepr.of[A].dealias.show
-    if context.activeTypes.contains(key) then Left(unsupportedType[A])
+    val typeKey = quotes.reflect.TypeRepr.of[A].dealias.show
+    val cacheKey = DerivationCacheKey(
+      typeKey,
+      context.activeTypes.toList.sorted
+    )
+
+    if context.activeTypes.contains(typeKey) then Left(unsupportedType[A])
     else
-      context.activeTypes += key
-      try deriveAttempt[A].getOrElse(Left(unsupportedType[A]))
-      finally context.activeTypes -= key
+      context.cache.get(cacheKey) match
+        case Some(cached) =>
+          cached.asInstanceOf[
+            Either[MaterializeError, (quotes.reflect.TypeRepr, Expr[Any])]
+          ]
+        case None =>
+          context.activeTypes += typeKey
+          try
+            val result = deriveAttempt[A].getOrElse(Left(unsupportedType[A]))
+            context.cache.update(cacheKey, result)
+            result
+          finally context.activeTypes -= typeKey
 
   private def deriveAttempt[A: Type](using
       Quotes,
