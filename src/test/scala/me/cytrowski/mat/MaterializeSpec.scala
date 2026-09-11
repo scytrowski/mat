@@ -3,6 +3,7 @@ package me.cytrowski.mat
 import org.scalatest.OptionValues
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.must.Matchers
+import scala.compiletime.testing.typeCheckErrors
 
 class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
 
@@ -175,6 +176,30 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
 
     materializeOpt[Unit].value mustBe ()
     customMaterializationUsed mustBe true
+  }
+
+  behavior of "compile-time contract"
+
+  it should "preserve precise result types" in {
+    val constant: 1337 = materialize[1337]
+    val tuple: (true, "test") = materialize[(true, "test")]
+    val product: SingleElementProduct[5] = materialize[SingleElementProduct[5]]
+    val singleton: SingletonSumVariant.type = materialize[SingletonSum]
+
+    constant mustBe 1337
+    tuple mustBe (true, "test")
+    product mustBe SingleElementProduct(5)
+    singleton mustBe SingletonSumVariant
+  }
+
+  it should "expose None as an Option for unsupported types" in {
+    val result: Option[String] = materializeOpt[String]
+
+    result mustBe empty
+  }
+
+  it should "reject unsupported types with materialize" in {
+    typeCheckErrors("materialize[String]") must not be empty
   }
 
   behavior of "other types"
