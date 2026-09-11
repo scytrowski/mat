@@ -33,6 +33,8 @@ private[mat] object MaterializeMacros:
         cause: MaterializeError
     )
     case UnsupportedIntersection(owner: String, left: String, right: String)
+    case UnsupportedUnion(owner: String)
+    case AmbiguousUnion(owner: String, variants: List[String])
 
     def message: String = this match
       case UnsupportedType(tpe) =>
@@ -49,13 +51,21 @@ private[mat] object MaterializeMacros:
         s"The only variant of $owner ($variantType) cannot be materialized: ${cause.message}"
       case UnsupportedIntersection(owner, left, right) =>
         s"Intersection type $owner cannot be materialized from either component ($left or $right)."
+      case UnsupportedUnion(owner) =>
+        s"Union type $owner cannot be materialized because none of its variants can be materialized."
+      case AmbiguousUnion(owner, variants) =>
+        s"Union type $owner is ambiguous because multiple variants can be materialized: ${variants.mkString(", ")}."
 
-  def materializeErrorImpl[A: Type](using Quotes): Expr[Any] =
-    quotes.reflect.report.errorAndAbort(
-      derive[A] match
-        case Left(error) => error.message
-        case Right(_)    => unsupportedType[A].message
-    )
+  def materializeImpl[A: Type](using Quotes): Expr[Any] =
+    import quotes.reflect.*
+
+    Expr.summon[Materialize[A]] match
+      case Some(materialize) =>
+        '{ $materialize.apply() }
+      case None =>
+        derive[A] match
+          case Right((_, value)) => value
+          case Left(error)       => report.errorAndAbort(error.message)
 
   def materializeInstanceImpl[A: Type](using Quotes): Expr[Materialize[A]] =
     derive[A] match
@@ -89,6 +99,7 @@ private[mat] object MaterializeMacros:
       )
       .orElse(deriveValueOf[A])
       .orElse(deriveIntersection[A])
+      .orElse(deriveUnion[A])
       .orElse(deriveNamedTuple[A])
       .orElse(deriveTuple[A])
       .orElse(deriveProduct[A])
@@ -147,6 +158,61 @@ private[mat] object MaterializeMacros:
             )
           )
         )
+      case _ => None
+
+  private def deriveUnion[A: Type](using
+      Quotes
+  ): Option[
+    Either[MaterializeError, (quotes.reflect.TypeRepr, Expr[Any])]
+  ] =
+    import quotes.reflect.*
+
+    val owner = TypeRepr.of[A].dealias
+
+    def variants(tpe: TypeRepr): List[TypeRepr] =
+      tpe.dealias match
+        case OrType(left, right) => variants(left) ++ variants(right)
+        case variant             => List(variant)
+
+    owner match
+      case OrType(_, _) =>
+        val successful = variants(owner).flatMap { variant =>
+          variant.asType match
+            case '[variantType] =>
+              derive[variantType] match
+                case Right((_, value)) =>
+                  Some(
+                    (
+                      TypeRepr.of[variantType],
+                      '{ ${ value }.asInstanceOf[variantType] }
+                    )
+                  )
+                case _ => None
+        }
+
+        val distinctSuccessful = successful.foldLeft(
+          List.empty[(TypeRepr, Expr[Any])]
+        ) { (results, candidate) =>
+          val (candidateType, _) = candidate
+          if results.exists { case (resultType, _) =>
+              resultType =:= candidateType
+            }
+          then results
+          else results :+ candidate
+        }
+
+        distinctSuccessful match
+          case result :: Nil => Some(Right(result))
+          case Nil => Some(Left(MaterializeError.UnsupportedUnion(owner.show)))
+          case results =>
+            Some(
+              Left(
+                MaterializeError.AmbiguousUnion(
+                  owner.show,
+                  results.map(_._1.show)
+                )
+              )
+            )
       case _ => None
 
   private def deriveNamedTuple[A: Type](using

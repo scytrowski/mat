@@ -202,14 +202,15 @@ The built-in derivation supports:
 
 - literal types with a `ValueOf` instance,
 - intersections when one component produces a value satisfying the full intersection,
+- unions with exactly one materializable variant,
 - tuples and named tuples whose elements are supported,
 - case-class products whose fields are supported,
 - singleton sums with exactly one variant,
 - custom values supplied through `CustomMaterialize[A]`.
 
-Types outside these forms, such as ordinary abstract types or sums with
-multiple variants, are rejected by `materialize[A]` and return `None` from
-`materializeOpt[A]`.
+Types outside these forms, such as ordinary abstract types, sums with multiple
+variants, or ambiguous unions, are rejected by `materialize[A]` and return
+`None` from `materializeOpt[A]`.
 
 ### Cross-building and tests
 
@@ -225,7 +226,6 @@ sbt +test
 
 ## 🚧 TODO
 
-- [ ] Support union types - e.g.: `5 | String` should materialize as `5`
 - [ ] Support nested singleton ADTs
 
 ---

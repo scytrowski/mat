@@ -1,7 +1,5 @@
 package me.cytrowski.mat
 
-import scala.compiletime.summonFrom
-
 /** Attempts to materialize type `A`.
   *
   * An existing `Materialize[A]` in scope is used first. If no evidence is
@@ -9,13 +7,7 @@ import scala.compiletime.summonFrom
   * compilation error with a diagnostic is raised.
   */
 transparent inline def materialize[A]: Any =
-  summonFrom {
-    case mat: Materialize[A] => mat()
-    case _                   => materializeError[A]
-  }
-
-private inline def materializeError[A]: Any =
-  ${ MaterializeMacros.materializeErrorImpl[A] }
+  ${ MaterializeMacros.materializeImpl[A] }
 
 /** Safely attempts to materialize type `A`.
   *

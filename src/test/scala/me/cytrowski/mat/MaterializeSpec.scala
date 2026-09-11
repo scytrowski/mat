@@ -92,6 +92,64 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
     materializeOpt[String & Int & AnyVal] mustBe empty
   }
 
+  behavior of "union types"
+
+  it should "materialize a union with one supported variant" in {
+    val left: 5 = materialize[5 | String]
+    val right: 5 = materialize[String | 5]
+
+    left mustBe 5
+    right mustBe 5
+  }
+
+  it should "materialize a nested union with one supported variant" in {
+    val value: 5 = materialize[(5 | String) | Boolean]
+
+    value mustBe 5
+  }
+
+  it should "materialize a flat union with more than two variants" in {
+    val value: 5 = materialize[5 | String | Boolean]
+
+    value mustBe 5
+  }
+
+  it should "materialize a union containing a tuple" in {
+    val left: (5, "abc", 'd') =
+      materialize[(5, "abc", 'd') | String]
+    val right: (5, "abc", 'd') =
+      materialize[String | (5, "abc", 'd')]
+
+    left mustBe (5, "abc", 'd')
+    right mustBe (5, "abc", 'd')
+  }
+
+  it should "materialize a union containing a tuple supertype" in {
+    val left: (5, "abc", 'd') =
+      materialize[(5, "abc", 'd') | Tuple]
+    val right: (5, "abc", 'd') =
+      materialize[Tuple | (5, "abc", 'd')]
+
+    left mustBe (5, "abc", 'd')
+    right mustBe (5, "abc", 'd')
+  }
+
+  it should "deduplicate repeated union variants" in {
+    materializeOpt[5 | 5].value mustBe 5
+  }
+
+  it should "not materialize an ambiguous union" in {
+    materializeOpt[5 | "abc"] mustBe empty
+  }
+
+  it should "not materialize an ambiguous flat union with more than two variants" in {
+    materializeOpt[5 | "abc" | true] mustBe empty
+  }
+
+  it should "not materialize a union without a supported variant" in {
+    materializeOpt[String | Int] mustBe empty
+  }
+
   behavior of "tuples"
 
   it should "materialize empty tuple" in {
@@ -277,6 +335,15 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
     materialize[ExplicitMaterialize] mustBe ExplicitMaterialize("explicit")
   }
 
+  it should "prefer explicit Materialize evidence over union derivation" in {
+    given Materialize.Aux[5 | String, String] =
+      Materialize.fromValue[5 | String, String]("explicit")
+
+    val value: String = materialize[5 | String]
+
+    value mustBe "explicit"
+  }
+
   it should "use explicit Materialize evidence through a context bound" in {
     case class ContextOnlyMaterialize(value: String)
 
@@ -351,6 +418,20 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
   it should "identify an unsupported intersection" in {
     diagnostic("materialize[String & Int]") mustBe
       "Intersection type scala.Predef.String & scala.Int cannot be materialized from either component (scala.Predef.String or scala.Int)."
+  }
+
+  it should "identify an ambiguous union" in {
+    val message = typeCheckErrors("materialize[5 | \"abc\"]")
+      .map(_.message)
+      .find(_.contains("Union type"))
+      .value
+    message mustBe
+      "Union type 5 | \"abc\" is ambiguous because multiple variants can be materialized: 5, \"abc\"."
+  }
+
+  it should "identify a union without a supported variant" in {
+    diagnostic("materialize[String | Int]") mustBe
+      "Union type scala.Predef.String | scala.Int cannot be materialized because none of its variants can be materialized."
   }
 
   it should "identify an unsupported product field" in {
