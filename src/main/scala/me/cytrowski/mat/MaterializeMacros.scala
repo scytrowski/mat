@@ -49,35 +49,36 @@ private[mat] object MaterializeMacros:
     case UnsupportedUnion(owner: String)
     case AmbiguousUnion(owner: String, variants: List[String])
 
-    def message: String = this match
-      case UnsupportedType(tpe) =>
+  private object MaterializeErrorRenderer:
+    def render(error: MaterializeError): String = error match
+      case MaterializeError.UnsupportedType(tpe) =>
         s"Type $tpe cannot be materialized. Supported forms are literal types, tuples, products, single-variant sums, or CustomMaterialize."
-      case TupleElement(owner, index, elementType, cause) =>
-        s"Element $index of tuple $owner ($elementType) cannot be materialized: ${cause.message}"
-      case ProductField(owner, name, fieldType, cause) =>
-        s"Field '$name' of $owner ($fieldType) cannot be materialized: ${cause.message}"
-      case UnsupportedSum(owner, variants) =>
+      case MaterializeError.TupleElement(owner, index, elementType, cause) =>
+        s"Element $index of tuple $owner ($elementType) cannot be materialized: ${render(cause)}"
+      case MaterializeError.ProductField(owner, name, fieldType, cause) =>
+        s"Field '$name' of $owner ($fieldType) cannot be materialized: ${render(cause)}"
+      case MaterializeError.UnsupportedSum(owner, variants) =>
         s"Sum type $owner has $variants materializable variants; only sums with exactly one materializable variant can be materialized."
-      case UnsupportedSumVariants(owner, variants) =>
+      case MaterializeError.UnsupportedSumVariants(owner, variants) =>
         variants match
           case (variantType, cause) :: Nil =>
-            s"Sum type $owner cannot be materialized because variant $variantType cannot be materialized: ${cause.message}"
+            s"Sum type $owner cannot be materialized because variant $variantType cannot be materialized: ${render(cause)}"
           case _ =>
             val details = variants
               .map { case (variantType, cause) =>
-                s"$variantType (${cause.message})"
+                s"$variantType (${render(cause)})"
               }
               .mkString(", ")
             s"Sum type $owner cannot be materialized because these variants cannot be materialized: $details."
-      case MissingProductMirror(owner) =>
+      case MaterializeError.MissingProductMirror(owner) =>
         s"Product type $owner has no usable Mirror.ProductOf instance."
-      case SingleVariant(owner, variantType, cause) =>
-        s"The only variant of $owner ($variantType) cannot be materialized: ${cause.message}"
-      case UnsupportedIntersection(owner, left, right) =>
+      case MaterializeError.SingleVariant(owner, variantType, cause) =>
+        s"The only variant of $owner ($variantType) cannot be materialized: ${render(cause)}"
+      case MaterializeError.UnsupportedIntersection(owner, left, right) =>
         s"Intersection type $owner cannot be materialized from either component ($left or $right)."
-      case UnsupportedUnion(owner) =>
+      case MaterializeError.UnsupportedUnion(owner) =>
         s"Union type $owner cannot be materialized because none of its variants can be materialized."
-      case AmbiguousUnion(owner, variants) =>
+      case MaterializeError.AmbiguousUnion(owner, variants) =>
         s"Union type $owner is ambiguous because multiple variants can be materialized: ${variants.mkString(", ")}."
 
   def materializeImpl[A: Type](using Quotes): Expr[Any] =
@@ -90,7 +91,8 @@ private[mat] object MaterializeMacros:
       case None =>
         derive[A] match
           case Right((_, value)) => value
-          case Left(error)       => report.errorAndAbort(error.message)
+          case Left(error)       =>
+            report.errorAndAbort(MaterializeErrorRenderer.render(error))
 
   def materializeInstanceImpl[A: Type](using Quotes): Expr[Materialize[A]] =
     given DerivationContext = new DerivationContext
@@ -102,7 +104,10 @@ private[mat] object MaterializeMacros:
             '{
               Materialize.fromValue[A, out](${ value }.asInstanceOf[out])
             }
-      case Left(error) => quotes.reflect.report.errorAndAbort(error.message)
+      case Left(error) =>
+        quotes.reflect.report.errorAndAbort(
+          MaterializeErrorRenderer.render(error)
+        )
 
   def materializeOptImpl[A: Type](using Quotes): Expr[Any] =
     given DerivationContext = new DerivationContext
