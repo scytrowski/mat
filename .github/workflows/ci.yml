@@ -8,7 +8,7 @@ on:
 
 jobs:
   test:
-    name: Test
+    name: Test supported Scala versions
     runs-on: ubuntu-latest
 
     steps:
@@ -37,7 +37,7 @@ jobs:
         run: sbt --batch scalafmtCheckAll
 
       - name: Run tests
-        run: sbt --batch test
+        run: sbt --batch +test
 
       - name: Package
-        run: sbt --batch package
+        run: sbt --batch +package

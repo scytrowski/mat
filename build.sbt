@@ -4,7 +4,8 @@ ThisBuild / version := {
   val v = "refs/tags/v"
   if (tag.startsWith(v)) tag.stripPrefix(v) else "SNAPSHOT"
 }
-ThisBuild / scalaVersion := "3.9.0"
+ThisBuild / scalaVersion := "3.8.4"
+ThisBuild / crossScalaVersions := Seq("3.8.4", "3.9.0")
 ThisBuild / name := "mat"
 ThisBuild / description := "Scala 3 library for type-level materialization of constant values, tuples, products and singleton sums"
 ThisBuild / licenses := Seq(
