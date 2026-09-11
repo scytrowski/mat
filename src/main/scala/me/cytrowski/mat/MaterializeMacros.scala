@@ -11,9 +11,41 @@ import scala.quoted.*
   * constructor calls or `Ref`s to user-defined symbols.
   */
 private[mat] object MaterializeMacros:
-  private final case class MaterializeError(message: String):
-    def prepend(context: String): MaterializeError =
-      MaterializeError(s"$context cannot be materialized: $message")
+  private enum MaterializeError:
+    case UnsupportedType(tpe: String)
+    case TupleElement(
+        owner: String,
+        index: Int,
+        elementType: String,
+        cause: MaterializeError
+    )
+    case ProductField(
+        owner: String,
+        name: String,
+        fieldType: String,
+        cause: MaterializeError
+    )
+    case UnsupportedSum(owner: String, variants: Int)
+    case MissingProductMirror(owner: String)
+    case SingleVariant(
+        owner: String,
+        variantType: String,
+        cause: MaterializeError
+    )
+
+    def message: String = this match
+      case UnsupportedType(tpe) =>
+        s"Type $tpe cannot be materialized. Supported forms are literal types, tuples, products, single-variant sums, or CustomMaterialize."
+      case TupleElement(owner, index, elementType, cause) =>
+        s"Element $index of tuple $owner ($elementType) cannot be materialized: ${cause.message}"
+      case ProductField(owner, name, fieldType, cause) =>
+        s"Field '$name' of $owner ($fieldType) cannot be materialized: ${cause.message}"
+      case UnsupportedSum(owner, variants) =>
+        s"Sum type $owner has $variants variants; only sums with exactly one variant can be materialized."
+      case MissingProductMirror(owner) =>
+        s"Product type $owner has no usable Mirror.ProductOf instance."
+      case SingleVariant(owner, variantType, cause) =>
+        s"The only variant of $owner ($variantType) cannot be materialized: ${cause.message}"
 
   def materializeErrorImpl[A: Type](using Quotes): Expr[Any] =
     quotes.reflect.report.errorAndAbort(
@@ -66,9 +98,7 @@ private[mat] object MaterializeMacros:
   )(
       tpe: quotes.reflect.TypeRepr
   ): MaterializeError =
-    MaterializeError(
-      s"Type ${tpe.show} cannot be materialized. Supported forms are literal types, tuples, products, single-variant sums, or CustomMaterialize."
-    )
+    MaterializeError.UnsupportedType(tpe.show)
 
   private def deriveValueOf[A: Type](using
       Quotes
@@ -145,8 +175,11 @@ private[mat] object MaterializeMacros:
         derive[head] match
           case Left(error) =>
             Left(
-              error.prepend(
-                s"Element $index of tuple $owner (${TypeRepr.of[head].show})"
+              MaterializeError.TupleElement(
+                owner,
+                index,
+                TypeRepr.of[head].show,
+                error
               )
             )
           case Right((headType, headValue)) =>
@@ -182,11 +215,7 @@ private[mat] object MaterializeMacros:
       Some(
         Expr.summon[Mirror.ProductOf[A]] match
           case None =>
-            Left(
-              MaterializeError(
-                s"Product type ${TypeRepr.of[A].show} has no usable Mirror.ProductOf instance."
-              )
-            )
+            Left(MaterializeError.MissingProductMirror(TypeRepr.of[A].show))
           case Some(mirror) =>
             val fieldValues = symbol.caseFields.foldLeft[
               Either[MaterializeError, List[Expr[Any]]]
@@ -198,8 +227,11 @@ private[mat] object MaterializeMacros:
                     derive[fieldType] match
                       case Left(error) =>
                         Left(
-                          error.prepend(
-                            s"Field '${field.name}' of ${TypeRepr.of[A].show} (${TypeRepr.of[fieldType].show})"
+                          MaterializeError.ProductField(
+                            TypeRepr.of[A].show,
+                            field.name,
+                            TypeRepr.of[fieldType].show,
+                            error
                           )
                         )
                       case Right((_, value)) => Right(values :+ value)
@@ -231,8 +263,9 @@ private[mat] object MaterializeMacros:
     else if symbol.children.size > 1 then
       Some(
         Left(
-          MaterializeError(
-            s"Sum type ${TypeRepr.of[A].show} has ${symbol.children.size} variants; only sums with exactly one variant can be materialized."
+          MaterializeError.UnsupportedSum(
+            TypeRepr.of[A].show,
+            symbol.children.size
           )
         )
       )
@@ -243,8 +276,10 @@ private[mat] object MaterializeMacros:
             success.tree.tpe.widen.asType match
               case '[SingletonSum[A] { type Repr = repr }] =>
                 derive[repr].left.map { error =>
-                  error.prepend(
-                    s"The only variant of ${TypeRepr.of[A].show} (${TypeRepr.of[repr].show})"
+                  MaterializeError.SingleVariant(
+                    TypeRepr.of[A].show,
+                    TypeRepr.of[repr].show,
+                    error
                   )
                 }
               case _ => Left(unsupportedType[A])

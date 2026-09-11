@@ -7,6 +7,12 @@ import scala.compiletime.testing.typeCheckErrors
 
 class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
 
+  private inline def diagnostic(inline code: String): String =
+    typeCheckErrors(code)
+      .map(_.message)
+      .find(_.contains("cannot be materialized"))
+      .value
+
   behavior of "constants"
 
   it should "materialize unit" in {
@@ -225,38 +231,49 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
   }
 
   it should "explain why an unsupported type cannot be materialized" in {
-    val errors = typeCheckErrors("materialize[String]")
-
-    withClue(errors.map(_.message).mkString("\n")) {
-      errors.exists(_.message.contains("Supported forms are")) mustBe true
-    }
+    diagnostic("materialize[String]") mustBe
+      "Type java.lang.String cannot be materialized. Supported forms are literal types, tuples, products, single-variant sums, or CustomMaterialize."
   }
 
   it should "explain why unsupported Materialize evidence cannot be derived" in {
-    val errors = typeCheckErrors("Materialize.derived[String]")
-
-    withClue(errors.map(_.message).mkString("\n")) {
-      errors.exists(_.message.contains("Supported forms are")) mustBe true
-    }
+    diagnostic("Materialize.derived[String]") mustBe
+      "Type java.lang.String cannot be materialized. Supported forms are literal types, tuples, products, single-variant sums, or CustomMaterialize."
   }
 
   it should "identify an unsupported tuple element" in {
-    val errors = typeCheckErrors("materialize[(5, String, true)]")
-
-    withClue(errors.map(_.message).mkString("\n")) {
-      errors.exists(_.message.contains("Element 1")) mustBe true
-      errors.exists(_.message.contains("String")) mustBe true
-    }
+    diagnostic("materialize[(5, String, true)]") mustBe
+      "Element 1 of tuple scala.Tuple3[5, scala.Predef.String, true] (java.lang.String) cannot be materialized: Type java.lang.String cannot be materialized. Supported forms are literal types, tuples, products, single-variant sums, or CustomMaterialize."
   }
 
   it should "identify an unsupported product field" in {
-    val errors = typeCheckErrors(
+    diagnostic(
       "materialize[MultipleElementsProduct[\"ok\", false, String]]"
-    )
+    ) mustBe
+      "Field 'c' of MaterializeSpec.this.MultipleElementsProduct[\"ok\", false, scala.Predef.String] (java.lang.String) cannot be materialized: Type java.lang.String cannot be materialized. Supported forms are literal types, tuples, products, single-variant sums, or CustomMaterialize."
+  }
 
-    withClue(errors.map(_.message).mkString("\n")) {
-      errors.exists(_.message.contains("Field 'c'")) mustBe true
-    }
+  it should "preserve context for nested tuple errors" in {
+    diagnostic("materialize[(5, (true, String))]") mustBe
+      "Element 1 of tuple scala.Tuple2[5, scala.Tuple2[true, scala.Predef.String]] (scala.Tuple2[true, scala.Predef.String]) cannot be materialized: Element 1 of tuple scala.Tuple2[true, scala.Predef.String] (java.lang.String) cannot be materialized: Type java.lang.String cannot be materialized. Supported forms are literal types, tuples, products, single-variant sums, or CustomMaterialize."
+  }
+
+  it should "preserve context for nested product errors" in {
+    diagnostic(
+      "materialize[MultipleElementsProduct[\"ok\", SingleElementProduct[String], false]]"
+    ) mustBe
+      "Field 'b' of MaterializeSpec.this.MultipleElementsProduct[\"ok\", MaterializeSpec.this.SingleElementProduct[scala.Predef.String], false] (MaterializeSpec.this.SingleElementProduct[scala.Predef.String]) cannot be materialized: Field 'a' of MaterializeSpec.this.SingleElementProduct[scala.Predef.String] (java.lang.String) cannot be materialized: Type java.lang.String cannot be materialized. Supported forms are literal types, tuples, products, single-variant sums, or CustomMaterialize."
+  }
+
+  it should "preserve context for named tuple errors" in {
+    diagnostic("materialize[(a: 5, b: String)]") mustBe
+      "Element 1 of tuple scala.NamedTuple.NamedTuple[scala.Tuple2[\"a\", \"b\"], scala.Tuple2[5, scala.Predef.String]] (java.lang.String) cannot be materialized: Type java.lang.String cannot be materialized. Supported forms are literal types, tuples, products, single-variant sums, or CustomMaterialize."
+  }
+
+  it should "identify unsupported sums" in {
+    val errors = typeCheckErrors("materialize[SumWithMultipleVariants]")
+
+    errors.map(_.message).find(_.contains("variants")).value mustBe
+      "Sum type MaterializeSpec.this.SumWithMultipleVariants has 3 variants; only sums with exactly one variant can be materialized."
   }
 
   behavior of "other types"
