@@ -1,6 +1,6 @@
 # mat
 
-[![Scala](https://img.shields.io/badge/Scala-3.9.0-red.svg)](https://www.scala-lang.org)
+[![Scala](https://img.shields.io/badge/Scala-3.8.x%20%7C%203.9.x-red.svg)](https://www.scala-lang.org)
 [![MvnRepository](https://badges.mvnrepository.com/badge/me.cytrowski/mat/badge.svg?label=MvnRepository&color=green)](https://mvnrepository.com/artifact/me.cytrowski/mat)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
@@ -9,6 +9,8 @@
 **`mat`** is a lightweight Scala 3 library for materializing types into values at compile time.
 
 It provides a macro-based approach for turning types like tuples, literal types, or case classes into values using `inline` and `Mirror`.
+
+The library currently cross-builds for Scala 3.8.x and 3.9.x.
 
 ---
 
@@ -19,11 +21,26 @@ It provides a macro-based approach for turning types like tuples, literal types,
 - Recursively materialize named tuples: `(a = 1, b = "abc", c = true)`
 - Materialize case classes via `Mirror.ProductOf`
 - Materialize sealed trait based ADTs with exactly one variant via `Mirror.SumOf`
+- Materialize named tuples while preserving their labels
+- Override built-in rules with `CustomMaterialize[A]`
+- Require materializable types through `Materialize[A]`
 - Safe fallback with `materializeOpt[A]` returning `Option`
+
+## ⚙️ Installation
+
+Add `mat` to an SBT project using the cross-building `%%` operator:
+
+```scala
+libraryDependencies += "me.cytrowski" %% "mat" % "<version>"
+```
+
+The selected artifact matches the Scala version used by the project: Scala
+3.8.x projects resolve the 3.8.x artifact and Scala 3.9.x projects resolve the
+3.9.x artifact.
 
 ---
 
-## 📦 Examples
+## 💡 Examples
 
 ### Materialize a literal value
 
@@ -74,6 +91,21 @@ val x: SomeClass[15] = materialize[SomeClass[15]]
 // x: SomeClass(15)
 ```
 
+### Try materialization without a compilation error
+
+`materializeOpt[A]` uses the same derivation rules as `materialize[A]`, but returns
+`None` when `A` cannot be materialized.
+
+```scala
+import me.cytrowski.mat.*
+
+val supported: Option[42] = materializeOpt[42]
+// supported: Some(42)
+
+val unsupported: Option[String] = materializeOpt[String]
+// unsupported: None
+```
+
 ### Materialize a singleton ADT variant
 
 ```scala
@@ -100,21 +132,91 @@ object SomeClass:
   val instance: SomeClass = new SomeClass {}
 
 given CustomMaterialize[SomeClass]:
-override type Out = SomeClass
-override def apply(): SomeClass = SomeClass.instance
+  override type Out = SomeClass
+  override def apply(): SomeClass = SomeClass.instance
 
 val x: SomeClass = materialize[SomeClass]
 // x: SomeClass.instance
 ```
 
-### Require a materializable type
+`CustomMaterialize[A]` has priority over all built-in derivation rules. This is
+useful when a type has a built-in representation but the application needs a
+different value.
 
-`Materialize[A]` is derived by the macro and can be used as a context bound.
+### Provide `Materialize[A]` explicitly
+
+`Materialize` is sealed, but external code can provide evidence using
+`Materialize.fromValue`:
 
 ```scala
 import me.cytrowski.mat.*
 
-def doSomethingWithMaterializableType[A: Materialize](value: A) = value
+case class Configuration(name: String)
+
+given Materialize[Configuration] =
+  Materialize.fromValue(Configuration("default"))
+
+val configuration: Configuration = materialize[Configuration]
+```
+
+An explicit `Materialize[A]` in scope is used before the macro tries to derive
+a new instance.
+
+### Require a materializable type
+
+`Materialize[A]` is derived by the macro and can be used as a context bound.
+Inside such a method, `materialize[A]` uses the evidence supplied by the
+caller.
+
+```scala
+import me.cytrowski.mat.*
+
+def materializeValue[A: Materialize]: A =
+  materialize[A]
+
+def doSomethingWithMaterializableType[A: Materialize](value: A): A =
+  value
+```
+
+The evidence preserves a more precise output type when it is available:
+
+```scala
+val evidence: Materialize.Aux[SomeADT, SingletonVariant.type] =
+  summon[Materialize[SomeADT]]
+```
+
+### Diagnostics
+
+When `materialize[A]` cannot derive a value, compilation fails with a diagnostic
+that explains where derivation stopped. For example, an unsupported field in a
+product is reported together with its field name and type. Nested products and
+tuples preserve the complete path to the unsupported value.
+
+Use `materializeOpt[A]` when failure is expected and should be represented as
+`None` instead of a compilation error.
+
+### Supported forms
+
+The built-in derivation supports:
+
+- literal types with a `ValueOf` instance,
+- tuples and named tuples whose elements are supported,
+- case-class products whose fields are supported,
+- singleton sums with exactly one variant,
+- custom values supplied through `CustomMaterialize[A]`.
+
+Types outside these forms, such as ordinary abstract types or sums with
+multiple variants, are rejected by `materialize[A]` and return `None` from
+`materializeOpt[A]`.
+
+### Cross-building and tests
+
+The project produces artifacts for both supported Scala versions. During
+development, the complete test suite can be run for every configured Scala
+version with:
+
+```shell
+sbt +test
 ```
 
 ---
