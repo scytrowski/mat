@@ -653,6 +653,54 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
     materializeOpt[TypeLambda[false]].value mustBe None
   }
 
+  it should "materialize a literal type alias" in {
+    materializeOpt[LiteralAlias].value mustBe 5
+  }
+
+  it should "not materialize an opaque type outside its defining scope" in {
+    materializeOpt[OpaqueTypes.Value] mustBe None
+  }
+
+  it should "not materialize a refined type" in {
+    materializeOpt[RefinedString] mustBe None
+  }
+
+  it should "not materialize Nothing" in {
+    materializeOpt[Nothing] mustBe None
+  }
+
+  it should "not materialize Any" in {
+    materializeOpt[Any] mustBe None
+  }
+
+  it should "materialize compatible variants of a generic enum" in {
+    materializeOpt[GenericEnum[Int]].value mustBe GenericEnum.IntValue
+    materializeOpt[GenericEnum[Boolean]].value mustBe GenericEnum.BooleanValue
+    materializeOpt[GenericEnum[String]] mustBe None
+  }
+
+  it should "explain why an opaque type cannot be materialized" in {
+    diagnostic("materialize[OpaqueTypes.Value]") mustBe
+      "Type MaterializeSpec.this.OpaqueTypes.Value cannot be materialized. Supported forms are literal types, tuples, products, single-variant sums, or CustomMaterialize."
+  }
+
+  it should "explain why a refined type cannot be materialized" in {
+    diagnostic("materialize[RefinedString]") mustBe
+      """Type scala.Predef.String {
+          |  type Marker >: true <: true
+          |} cannot be materialized. Supported forms are literal types, tuples, products, single-variant sums, or CustomMaterialize.""".stripMargin
+  }
+
+  it should "explain why Nothing cannot be materialized" in {
+    diagnostic("materialize[Nothing]") mustBe
+      "Type scala.Nothing cannot be materialized. Supported forms are literal types, tuples, products, single-variant sums, or CustomMaterialize."
+  }
+
+  it should "explain why Any cannot be materialized" in {
+    diagnostic("materialize[Any]") mustBe
+      "Type scala.Any cannot be materialized. Supported forms are literal types, tuples, products, single-variant sums, or CustomMaterialize."
+  }
+
   it should "not materialize abstract type" in {
     materializeOpt[String] mustBe empty
   }
@@ -755,6 +803,11 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
     case ThirdVariant
   }
 
+  private enum GenericEnum[+A] {
+    case IntValue extends GenericEnum[Int]
+    case BooleanValue extends GenericEnum[Boolean]
+  }
+
   private sealed abstract class ClassWithCustomMaterialization
 
   private object ClassWithCustomMaterialization:
@@ -770,5 +823,11 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
     C match
       case true  => Some["test"]
       case false => None.type
+
+  private type LiteralAlias = 5
+  private type RefinedString = String { type Marker = true }
+
+  private object OpaqueTypes:
+    opaque type Value = 5
 
 }
