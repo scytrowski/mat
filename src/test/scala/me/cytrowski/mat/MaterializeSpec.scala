@@ -375,6 +375,18 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
     nothingResult mustBe None
   }
 
+  it should "reject a directly recursive product without overflowing" in {
+    materializeOpt[RecursiveProduct] mustBe None
+  }
+
+  it should "reject a recursive sum with a base singleton" in {
+    materializeOpt[RecursiveRoot] mustBe None
+  }
+
+  it should "reject a generic recursive sum" in {
+    materializeOpt[GenericRecursiveRoot[5]] mustBe None
+  }
+
   it should "not materialize sum with multiple variants" in {
     materializeOpt[SumWithMultipleVariants] mustBe empty
   }
@@ -610,6 +622,21 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
       "Sum type scala.Option[scala.Nothing] cannot be materialized because variant scala.Some[scala.Nothing] cannot be materialized: Field 'value' of scala.Some[scala.Nothing] (scala.Nothing) cannot be materialized: Type scala.Nothing cannot be materialized. Supported forms are literal types, tuples, products, single-variant sums, or CustomMaterialize."
   }
 
+  it should "explain recursive sum branch failures" in {
+    diagnostic("materialize[RecursiveRoot]") mustBe
+      "Sum type MaterializeSpec.this.RecursiveRoot cannot be materialized because variant MaterializeSpec.this.RecursiveNode cannot be materialized: Field 'next' of MaterializeSpec.this.RecursiveNode (MaterializeSpec.this.RecursiveRoot) cannot be materialized: Type MaterializeSpec.this.RecursiveRoot cannot be materialized. Supported forms are literal types, tuples, products, single-variant sums, or CustomMaterialize."
+  }
+
+  it should "explain directly recursive product failures" in {
+    diagnostic("materialize[RecursiveProduct]") mustBe
+      "Field 'next' of MaterializeSpec.this.RecursiveProduct (MaterializeSpec.this.RecursiveProduct) cannot be materialized: Type MaterializeSpec.this.RecursiveProduct cannot be materialized. Supported forms are literal types, tuples, products, single-variant sums, or CustomMaterialize."
+  }
+
+  it should "explain generic recursive sum branch failures" in {
+    diagnostic("materialize[GenericRecursiveRoot[5]]") mustBe
+      "Sum type MaterializeSpec.this.GenericRecursiveRoot[5] cannot be materialized because variant MaterializeSpec.this.GenericRecursiveNode[5] cannot be materialized: Field 'next' of MaterializeSpec.this.GenericRecursiveNode[5] (MaterializeSpec.this.GenericRecursiveRoot[5]) cannot be materialized: Type MaterializeSpec.this.GenericRecursiveRoot[5] cannot be materialized. Supported forms are literal types, tuples, products, single-variant sums, or CustomMaterialize."
+  }
+
   behavior of "other types"
 
   it should "materialize type lambda resulting in constant type" in {
@@ -673,6 +700,19 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
   private case object MixedMultipleSingleton extends MixedMultipleRoot
   private sealed trait MixedMultipleEmptyBranch extends MixedMultipleRoot
   private case object MixedMultipleLeaf extends MixedMultipleRoot
+
+  private case class RecursiveProduct(next: RecursiveProduct)
+
+  private sealed trait RecursiveRoot
+  private case object RecursiveBase extends RecursiveRoot
+  private case class RecursiveNode(next: RecursiveRoot) extends RecursiveRoot
+
+  private sealed trait GenericRecursiveRoot[+A]
+  private case object GenericRecursiveBase extends GenericRecursiveRoot[Nothing]
+  private case class GenericRecursiveNode[A](
+      value: A,
+      next: GenericRecursiveRoot[A]
+  ) extends GenericRecursiveRoot[A]
 
   private sealed trait ParameterizedResult[+A]
   private case object ParameterizedEmpty extends ParameterizedResult[Nothing]
