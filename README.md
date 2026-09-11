@@ -18,7 +18,7 @@ It provides a typeclass-based approach for turning types like tuples, literal ty
 - Recursively materialize tuples: `(1, "abc", true)`
 - Recursively materialize named tuples: `(a = 1, b = "abc", c = true)`
 - Materialize case classes via `Mirror.ProductOf`
-- Materialize singleton sealed trait based ADTs via `Mirror.SumOf`
+- Materialize sealed trait based ADTs with exactly one variant via `Mirror.SumOf`
 - Safe fallback with `materializeOpt[A]` returning `Option`
 
 ---
@@ -88,6 +88,8 @@ val x: SingletonVariant.type = materialize[SomeADT]
 ```
 
 ### Provide custom materialization logic
+
+`CustomMaterialize[A]` takes precedence over the built-in materialization rules.
 
 ```scala
 import me.cytrowski.mat.*

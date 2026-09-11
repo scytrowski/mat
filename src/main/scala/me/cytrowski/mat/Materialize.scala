@@ -30,9 +30,10 @@ transparent inline def materializeOpt[A]: Any =
   *   - It is a product type (e.g., a case class) whose fields are all
   *     materializable
   *   - It is a sum type (e.g., a sealed trait or enum) with exactly one
-  *     materializable variant
+  *     variant, and that variant is materializable
   *   - There exists a
-  *     {@link me.cytrowski.mat.CustomMaterialize CustomMaterialize[A]}
+  *     {@link me.cytrowski.mat.CustomMaterialize CustomMaterialize[A]}, which
+  *     takes precedence over the built-in materialization rules
   *
   * The `apply()` method returns a value of type `Out`, which is guaranteed to
   * be a subtype of `A`.

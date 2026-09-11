@@ -11,9 +11,8 @@ package me.cytrowski.mat
   * outside the standard cases (e.g. constant types, tuples, products, singleton
   * sums).
   *
-  * When a `CustomMaterialize[A]` instance is in scope, it will be used as a
-  * fallback during materialization if no built-in instance of `Materialize[A]`
-  * is available.
+  * When a `CustomMaterialize[A]` instance is in scope, it takes precedence over
+  * the built-in `Materialize[A]` instances and can override their behavior.
   */
 trait CustomMaterialize[A]:
   /** The resulting type of the materialized value. */

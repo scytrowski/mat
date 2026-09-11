@@ -165,6 +165,18 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
     ].value mustBe ClassWithCustomMaterialization.instance
   }
 
+  it should "prefer custom materialization over built-in implementation" in {
+    var customMaterializationUsed = false
+
+    given CustomMaterialize[Unit]:
+      override type Out = Unit
+      override def apply(): Unit =
+        customMaterializationUsed = true
+
+    materializeOpt[Unit].value mustBe ()
+    customMaterializationUsed mustBe true
+  }
+
   behavior of "other types"
 
   it should "materialize type lambda resulting in constant type" in {
