@@ -241,8 +241,10 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
   }
 
   it should "materialize named tuple with mixed union and intersection elements" in {
-    materializeOpt[(a: 5 | String, b: "abc" & String, c: 'd')].value mustBe
-      ((a = 5, b = "abc", c = 'd'))
+    val value: (a: 5, b: "abc", c: 'd') =
+      materialize[(a: 5 | String, b: "abc" & String, c: 'd')]
+
+    value mustBe ((a = 5, b = "abc", c = 'd'))
   }
 
   it should "materialize nested named tuple" in {
@@ -292,9 +294,10 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
   }
 
   it should "materialize product with mixed union and intersection fields" in {
-    materializeOpt[
-      MultipleElementsProduct[5 | String, "abc" & String, 'd']
-    ].value mustBe MultipleElementsProduct(5, "abc", 'd')
+    val value: MultipleElementsProduct[5, "abc", 'd'] =
+      materialize[MultipleElementsProduct[5 | String, "abc" & String, 'd']]
+
+    value mustBe MultipleElementsProduct(5, "abc", 'd')
   }
 
   it should "materialize a local product without generated symbol references" in {

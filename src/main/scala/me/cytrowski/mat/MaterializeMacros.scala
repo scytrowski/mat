@@ -1,6 +1,6 @@
 package me.cytrowski.mat
 
-import scala.NamedTuple.{AnyNamedTuple, DropNames, Names, withNames}
+import scala.NamedTuple.{AnyNamedTuple, DropNames, NamedTuple, Names, withNames}
 import scala.deriving.Mirror
 import scala.quoted.*
 
@@ -234,15 +234,21 @@ private[mat] object MaterializeMacros:
                   TypeRepr.of[values],
                   TypeRepr.of[A].show,
                   0
-                ).map { case (_, value) =>
-                  (
-                    TypeRepr.of[A],
-                    '{
-                      ${ value }
-                        .asInstanceOf[values]
-                        .withNames[Names[namedTuple]]
-                    }
-                  )
+                ).flatMap { case (valuesType, value) =>
+                  valuesType.asType match
+                    case '[type outputValues <: Tuple; outputValues] =>
+                      val outputType =
+                        TypeRepr.of[NamedTuple[Names[namedTuple], outputValues]]
+                      Right(
+                        (
+                          outputType,
+                          '{
+                            ${ value }
+                              .asInstanceOf[outputValues]
+                              .withNames[Names[namedTuple]]
+                          }
+                        )
+                      )
                 }
               )
       case _ => None
@@ -322,7 +328,10 @@ private[mat] object MaterializeMacros:
             Left(MaterializeError.MissingProductMirror(TypeRepr.of[A].show))
           case Some(mirror) =>
             val fieldValues = symbol.caseFields.foldLeft[
-              Either[MaterializeError, List[Expr[Any]]]
+              Either[
+                MaterializeError,
+                List[(TypeRepr, TypeRepr, Expr[Any])]
+              ]
             ](Right(List.empty)) {
               case (result @ Left(_), _)  => result
               case (Right(values), field) =>
@@ -338,20 +347,46 @@ private[mat] object MaterializeMacros:
                             error
                           )
                         )
-                      case Right((_, value)) => Right(values :+ value)
+                      case Right((outputType, value)) =>
+                        Right(
+                          values :+
+                            (TypeRepr.of[fieldType], outputType, value)
+                        )
             }
 
-            fieldValues.map { values =>
-              val tuple = buildTuple(values)
-              (
-                TypeRepr.of[A],
+            fieldValues.map { fields =>
+              val owner = TypeRepr.of[A].dealias
+              val preciseProduct = owner match
+                case AppliedType(typeConstructor, typeArguments) =>
+                  val preciseArguments = typeArguments.map { typeArgument =>
+                    fields
+                      .collectFirst {
+                        case (fieldType, outputType, _)
+                            if fieldType =:= typeArgument =>
+                          outputType
+                      }
+                      .getOrElse(typeArgument)
+                  }
+                  AppliedType(typeConstructor, preciseArguments)
+                case _ => owner
+              val outputType =
+                if preciseProduct =:= owner then owner
+                else AndType(owner, preciseProduct)
+              val tuple = buildTuple(fields.map(_._3))
+              val value =
                 '{
                   val product = $mirror
                   product.fromTuple(
                     $tuple.asInstanceOf[product.MirroredElemTypes]
                   )
                 }
-              )
+
+              outputType.asType match
+                case '[output] =>
+                  (
+                    outputType,
+                    '{ ${ value }.asInstanceOf[output] }
+                  )
             }
       )
 
