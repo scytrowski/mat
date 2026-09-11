@@ -150,6 +150,47 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
     materializeOpt[String | Int] mustBe empty
   }
 
+  behavior of "mixed union and intersection types"
+
+  it should "materialize a union containing an intersection" in {
+    val left: 5 = materialize[(5 & Int) | String]
+    val right: 5 = materialize[String | (5 & Int)]
+
+    left mustBe 5
+    right mustBe 5
+  }
+
+  it should "materialize an intersection containing a union" in {
+    val left: 5 = materialize[(5 | String) & Int]
+    val right: 5 = materialize[Int & (5 | String)]
+
+    left mustBe 5
+    right mustBe 5
+  }
+
+  it should "materialize a tuple containing a union and an intersection" in {
+    val value: (5, "abc", 'd') =
+      materialize[(5 | String, "abc" & String, 'd')]
+
+    value mustBe (5, "abc", 'd')
+  }
+
+  it should "materialize a deeply nested union and intersection" in {
+    val left: 5 = materialize[(5 & Int & AnyVal) | String]
+    val right: 5 = materialize[(5 | String | Boolean) & AnyVal]
+
+    left mustBe 5
+    right mustBe 5
+  }
+
+  it should "reject an ambiguous union of intersections" in {
+    materializeOpt[(5 & Int) | ("abc" & String)] mustBe empty
+  }
+
+  it should "reject a union and intersection without a materializable branch" in {
+    materializeOpt[(String & Int) | Boolean] mustBe empty
+  }
+
   behavior of "tuples"
 
   it should "materialize empty tuple" in {
@@ -199,6 +240,11 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
     ))
   }
 
+  it should "materialize named tuple with mixed union and intersection elements" in {
+    materializeOpt[(a: 5 | String, b: "abc" & String, c: 'd')].value mustBe
+      ((a = 5, b = "abc", c = 'd'))
+  }
+
   it should "materialize nested named tuple" in {
     materializeOpt[(a: 'u', b: 37, c: (d: 98.76, e: false))].value mustBe ((
       a = 'u',
@@ -243,6 +289,12 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
       MultipleElementsProduct(true, 98.32, 'p'),
       19
     )
+  }
+
+  it should "materialize product with mixed union and intersection fields" in {
+    materializeOpt[
+      MultipleElementsProduct[5 | String, "abc" & String, 'd']
+    ].value mustBe MultipleElementsProduct(5, "abc", 'd')
   }
 
   it should "materialize a local product without generated symbol references" in {
@@ -432,6 +484,13 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
   it should "identify a union without a supported variant" in {
     diagnostic("materialize[String | Int]") mustBe
       "Union type scala.Predef.String | scala.Int cannot be materialized because none of its variants can be materialized."
+  }
+
+  it should "preserve context for nested mixed union and intersection errors" in {
+    diagnostic(
+      "materialize[MultipleElementsProduct[\"ok\", 5 | \"abc\", false]]"
+    ) mustBe
+      "Field 'b' of MaterializeSpec.this.MultipleElementsProduct[\"ok\", 5 | \"abc\", false] (5 | \"abc\") cannot be materialized: Union type 5 | \"abc\" is ambiguous because multiple variants can be materialized: 5, \"abc\"."
   }
 
   it should "identify an unsupported product field" in {
