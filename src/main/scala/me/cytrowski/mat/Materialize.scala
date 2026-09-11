@@ -1,6 +1,6 @@
 package me.cytrowski.mat
 
-import scala.compiletime.{error, summonFrom}
+import scala.compiletime.summonFrom
 
 /** Attempts to materialize type `A`.
   *
@@ -9,8 +9,11 @@ import scala.compiletime.{error, summonFrom}
 transparent inline def materialize[A]: Any =
   summonFrom {
     case mat: Materialize[A] => mat()
-    case _                   => error("Type cannot be materialized")
+    case _                   => materializeError[A]
   }
+
+private inline def materializeError[A]: Any =
+  ${ MaterializeMacros.materializeErrorImpl[A] }
 
 /** Safely attempts to materialize type `A`. */
 transparent inline def materializeOpt[A]: Any =

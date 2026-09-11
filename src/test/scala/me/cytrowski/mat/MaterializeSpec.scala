@@ -224,6 +224,41 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
     typeCheckErrors("materialize[String]") must not be empty
   }
 
+  it should "explain why an unsupported type cannot be materialized" in {
+    val errors = typeCheckErrors("materialize[String]")
+
+    withClue(errors.map(_.message).mkString("\n")) {
+      errors.exists(_.message.contains("Supported forms are")) mustBe true
+    }
+  }
+
+  it should "explain why unsupported Materialize evidence cannot be derived" in {
+    val errors = typeCheckErrors("Materialize.derived[String]")
+
+    withClue(errors.map(_.message).mkString("\n")) {
+      errors.exists(_.message.contains("Supported forms are")) mustBe true
+    }
+  }
+
+  it should "identify an unsupported tuple element" in {
+    val errors = typeCheckErrors("materialize[(5, String, true)]")
+
+    withClue(errors.map(_.message).mkString("\n")) {
+      errors.exists(_.message.contains("Element 1")) mustBe true
+      errors.exists(_.message.contains("String")) mustBe true
+    }
+  }
+
+  it should "identify an unsupported product field" in {
+    val errors = typeCheckErrors(
+      "materialize[MultipleElementsProduct[\"ok\", false, String]]"
+    )
+
+    withClue(errors.map(_.message).mkString("\n")) {
+      errors.exists(_.message.contains("Field 'c'")) mustBe true
+    }
+  }
+
   behavior of "other types"
 
   it should "materialize type lambda resulting in constant type" in {
