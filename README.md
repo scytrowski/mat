@@ -22,6 +22,7 @@ The library currently cross-builds for Scala 3.8.x and 3.9.x.
 - Materialize case classes via `Mirror.ProductOf`
 - Materialize sealed trait based ADTs with exactly one variant via `Mirror.SumOf`
 - Materialize named tuples while preserving their labels
+- Materialize supported intersection types such as `5 & Int`
 - Override built-in rules with `CustomMaterialize[A]`
 - Require materializable types through `Materialize[A]`
 - Safe fallback with `materializeOpt[A]` returning `Option`
@@ -200,6 +201,7 @@ Use `materializeOpt[A]` when failure is expected and should be represented as
 The built-in derivation supports:
 
 - literal types with a `ValueOf` instance,
+- intersections when one component produces a value satisfying the full intersection,
 - tuples and named tuples whose elements are supported,
 - case-class products whose fields are supported,
 - singleton sums with exactly one variant,
@@ -223,7 +225,6 @@ sbt +test
 
 ## 🚧 TODO
 
-- [ ] Support intersection types - e.g.: `5 & Int` should materialize as `5`
 - [ ] Support union types - e.g.: `5 | String` should materialize as `5`
 - [ ] Support nested singleton ADTs
 

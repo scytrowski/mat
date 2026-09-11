@@ -39,6 +39,59 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
     materializeOpt["abcdef"].value mustBe "abcdef"
   }
 
+  behavior of "intersection types"
+
+  it should "materialize an intersection with a literal type on the left" in {
+    materializeOpt[5 & Int].value mustBe 5
+  }
+
+  it should "materialize an intersection with a literal type on the right" in {
+    materializeOpt[Int & 5].value mustBe 5
+  }
+
+  it should "preserve the precise type of an intersection result" in {
+    val left: 5 = materialize[5 & Int]
+    val right: 5 = materialize[Int & 5]
+
+    left mustBe 5
+    right mustBe 5
+  }
+
+  it should "materialize an intersection with more than two components" in {
+    val threeComponents: 5 = materialize[5 & Int & AnyVal]
+    val fourComponents: 5 = materialize[5 & Int & AnyVal & Matchable]
+
+    threeComponents mustBe 5
+    fourComponents mustBe 5
+  }
+
+  it should "materialize an intersection of the same literal type" in {
+    materializeOpt[5 & 5].value mustBe 5
+    materializeOpt[5 & 5 & 5].value mustBe 5
+  }
+
+  it should "materialize an intersection containing a tuple" in {
+    val left: (5, "abc", 'd') =
+      materialize[(5, "abc", 'd') & Tuple]
+    val right: (5, "abc", 'd') =
+      materialize[Tuple & (5, "abc", 'd')]
+
+    left mustBe (5, "abc", 'd')
+    right mustBe (5, "abc", 'd')
+  }
+
+  it should "reject an intersection of incompatible literal types" in {
+    typeCheckErrors("materialize[5 & \"abc\"]") must not be empty
+  }
+
+  it should "not materialize an unsupported intersection" in {
+    materializeOpt[String & Int] mustBe empty
+  }
+
+  it should "not materialize an unsupported intersection with more than two components" in {
+    materializeOpt[String & Int & AnyVal] mustBe empty
+  }
+
   behavior of "tuples"
 
   it should "materialize empty tuple" in {
@@ -293,6 +346,11 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
   it should "identify an unsupported tuple element" in {
     diagnostic("materialize[(5, String, true)]") mustBe
       "Element 1 of tuple scala.Tuple3[5, scala.Predef.String, true] (java.lang.String) cannot be materialized: Type java.lang.String cannot be materialized. Supported forms are literal types, tuples, products, single-variant sums, or CustomMaterialize."
+  }
+
+  it should "identify an unsupported intersection" in {
+    diagnostic("materialize[String & Int]") mustBe
+      "Intersection type scala.Predef.String & scala.Int cannot be materialized from either component (scala.Predef.String or scala.Int)."
   }
 
   it should "identify an unsupported product field" in {

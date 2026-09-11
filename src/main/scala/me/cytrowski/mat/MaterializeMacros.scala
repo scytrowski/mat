@@ -32,6 +32,7 @@ private[mat] object MaterializeMacros:
         variantType: String,
         cause: MaterializeError
     )
+    case UnsupportedIntersection(owner: String, left: String, right: String)
 
     def message: String = this match
       case UnsupportedType(tpe) =>
@@ -46,6 +47,8 @@ private[mat] object MaterializeMacros:
         s"Product type $owner has no usable Mirror.ProductOf instance."
       case SingleVariant(owner, variantType, cause) =>
         s"The only variant of $owner ($variantType) cannot be materialized: ${cause.message}"
+      case UnsupportedIntersection(owner, left, right) =>
+        s"Intersection type $owner cannot be materialized from either component ($left or $right)."
 
   def materializeErrorImpl[A: Type](using Quotes): Expr[Any] =
     quotes.reflect.report.errorAndAbort(
@@ -85,6 +88,7 @@ private[mat] object MaterializeMacros:
         Right((quotes.reflect.TypeRepr.of[A], '{ $custom.apply() }))
       )
       .orElse(deriveValueOf[A])
+      .orElse(deriveIntersection[A])
       .orElse(deriveNamedTuple[A])
       .orElse(deriveTuple[A])
       .orElse(deriveProduct[A])
@@ -110,6 +114,40 @@ private[mat] object MaterializeMacros:
       .map(valueOf =>
         Right((quotes.reflect.TypeRepr.of[A], '{ $valueOf.value }))
       )
+
+  private def deriveIntersection[A: Type](using
+      Quotes
+  ): Option[
+    Either[MaterializeError, (quotes.reflect.TypeRepr, Expr[Any])]
+  ] =
+    import quotes.reflect.*
+
+    TypeRepr.of[A].dealias match
+      case AndType(left, right) =>
+        val owner = TypeRepr.of[A].dealias
+        val result = List(left, right).iterator
+          .flatMap { candidate =>
+            candidate.asType match
+              case '[candidateType] =>
+                derive[candidateType] match
+                  case Right(result @ (outType, _)) if outType <:< owner =>
+                    Iterator(result)
+                  case _ => Iterator.empty
+          }
+          .take(1)
+          .toList
+          .headOption
+
+        Some(
+          result.toRight(
+            MaterializeError.UnsupportedIntersection(
+              owner.show,
+              left.show,
+              right.show
+            )
+          )
+        )
+      case _ => None
 
   private def deriveNamedTuple[A: Type](using
       Quotes
