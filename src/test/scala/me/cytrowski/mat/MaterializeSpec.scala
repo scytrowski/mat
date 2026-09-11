@@ -213,6 +213,44 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
     value mustBe SingleElementProduct(5)
   }
 
+  it should "prefer explicit Materialize evidence over derivation" in {
+    case class ExplicitMaterialize(value: String)
+
+    given Materialize[ExplicitMaterialize] =
+      Materialize.fromValue[ExplicitMaterialize, ExplicitMaterialize](
+        ExplicitMaterialize("explicit")
+      )
+
+    materialize[ExplicitMaterialize] mustBe ExplicitMaterialize("explicit")
+  }
+
+  it should "use explicit Materialize evidence through a context bound" in {
+    case class ContextOnlyMaterialize(value: String)
+
+    given Materialize[ContextOnlyMaterialize] =
+      Materialize.fromValue[ContextOnlyMaterialize, ContextOnlyMaterialize](
+        ContextOnlyMaterialize("context")
+      )
+
+    def requiresMaterialize[A: Materialize]: A = materialize[A]
+
+    requiresMaterialize[ContextOnlyMaterialize] mustBe
+      ContextOnlyMaterialize("context")
+  }
+
+  it should "evaluate Materialize.fromValue on every application" in {
+    var applications = 0
+    val evidence: Materialize.Aux[Int, Int] =
+      Materialize.fromValue[Int, Int] {
+        applications += 1
+        applications
+      }
+
+    evidence() mustBe 1
+    evidence() mustBe 2
+    applications mustBe 2
+  }
+
   it should "preserve the precise output type in Materialize evidence" in {
     val evidence: Materialize.Aux[SingletonSum, SingletonSumVariant.type] =
       summon[Materialize[SingletonSum]]
@@ -222,6 +260,18 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
 
   it should "expose None as an Option for unsupported types" in {
     val result: Option[String] = materializeOpt[String]
+
+    result mustBe empty
+  }
+
+  it should "expose None for nested unsupported types" in {
+    val result: Option[MultipleElementsProduct[
+      "ok",
+      SingleElementProduct[String],
+      false
+    ]] = materializeOpt[
+      MultipleElementsProduct["ok", SingleElementProduct[String], false]
+    ]
 
     result mustBe empty
   }
