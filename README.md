@@ -205,7 +205,7 @@ The built-in derivation supports:
 - unions with exactly one materializable variant,
 - tuples and named tuples whose elements are supported,
 - case-class products whose fields are supported,
-- singleton sums with exactly one variant,
+- singleton sums with exactly one variant, including nested singleton sums,
 - custom values supplied through `CustomMaterialize[A]`.
 
 Types outside these forms, such as ordinary abstract types, sums with multiple
@@ -221,12 +221,6 @@ version with:
 ```shell
 sbt +test
 ```
-
----
-
-## 🚧 TODO
-
-- [ ] Support nested singleton ADTs
 
 ---
 

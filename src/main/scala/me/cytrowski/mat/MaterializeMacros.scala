@@ -44,7 +44,7 @@ private[mat] object MaterializeMacros:
       case ProductField(owner, name, fieldType, cause) =>
         s"Field '$name' of $owner ($fieldType) cannot be materialized: ${cause.message}"
       case UnsupportedSum(owner, variants) =>
-        s"Sum type $owner has $variants variants; only sums with exactly one variant can be materialized."
+        s"Sum type $owner has $variants materializable variants; only sums with exactly one materializable variant can be materialized."
       case MissingProductMirror(owner) =>
         s"Product type $owner has no usable Mirror.ProductOf instance."
       case SingleVariant(owner, variantType, cause) =>
@@ -397,18 +397,12 @@ private[mat] object MaterializeMacros:
   ] =
     import quotes.reflect.*
 
-    val symbol = TypeRepr.of[A].typeSymbol
-    if symbol.children.isEmpty then None
-    else if symbol.children.size > 1 then
-      Some(
-        Left(
-          MaterializeError.UnsupportedSum(
-            TypeRepr.of[A].show,
-            symbol.children.size
-          )
-        )
-      )
-    else
+    val tpe = TypeRepr.of[A]
+    val owner = tpe.dealias
+    val symbol = tpe.typeSymbol
+    if owner =:= TypeRepr.of[Tuple] then Some(Left(unsupportedType[A]))
+    else if symbol.children.isEmpty then None
+    else if symbol.children.size == 1 then
       Some(
         Implicits.search(TypeRepr.of[SingletonSum[A]]) match
           case success: ImplicitSearchSuccess =>
@@ -416,7 +410,7 @@ private[mat] object MaterializeMacros:
               case '[SingletonSum[A] { type Repr = repr }] =>
                 derive[repr].left.map { error =>
                   MaterializeError.SingleVariant(
-                    TypeRepr.of[A].show,
+                    owner.show,
                     TypeRepr.of[repr].show,
                     error
                   )
@@ -424,6 +418,52 @@ private[mat] object MaterializeMacros:
               case _ => Left(unsupportedType[A])
           case _ => Left(unsupportedType[A])
       )
+    else
+      val childResults = symbol.children.map { child =>
+        if child.flags.is(Flags.Module) then
+          child.termRef.asType match
+            case '[childType] =>
+              (
+                TypeRepr.of[childType],
+                Right((TypeRepr.of[childType], Ref(child).asExpr))
+              )
+        else
+          val childType = child.typeRef
+          childType.asType match
+            case '[childType] =>
+              (childType, derive[childType])
+      }
+      val successful = childResults.collect { case (_, Right(result)) =>
+        result
+      }
+      val blockingFailures = childResults.collect {
+        case (childType, Left(error))
+            if !childType.typeSymbol.flags.is(Flags.Sealed) ||
+              childType.typeSymbol.children.nonEmpty ||
+              childType.typeSymbol.flags.is(Flags.Case) =>
+          (childType, error)
+      }
+
+      successful match
+        case result :: Nil if blockingFailures.isEmpty => Some(Right(result))
+        case Nil                                       =>
+          Some(
+            Left(
+              MaterializeError.UnsupportedSum(
+                owner.show,
+                childResults.size
+              )
+            )
+          )
+        case results =>
+          Some(
+            Left(
+              MaterializeError.UnsupportedSum(
+                owner.show,
+                results.size
+              )
+            )
+          )
 
   private def buildTuple(values: List[Expr[Any]])(using Quotes): Expr[Any] =
     values match

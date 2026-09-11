@@ -316,6 +316,41 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
     materializeOpt[SingletonSum].value mustBe SingletonSumVariant
   }
 
+  it should "materialize a nested singleton sum" in {
+    materializeOpt[NestedSingletonRoot].value mustBe NestedSingletonLeaf
+  }
+
+  it should "materialize a deeply nested singleton sum" in {
+    val value: DeepSingletonLeaf.type = materialize[DeepSingletonRoot]
+
+    value mustBe DeepSingletonLeaf
+  }
+
+  it should "materialize a nested singleton sum containing a product" in {
+    materializeOpt[NestedProductRoot].value mustBe NestedProductLeaf(5)
+  }
+
+  it should "not materialize a nested sum with multiple variants" in {
+    materializeOpt[NestedMultipleRoot] mustBe empty
+  }
+
+  it should "not materialize a root with a singleton and nested branch" in {
+    materializeOpt[MixedNestedRoot] mustBe empty
+  }
+
+  it should "materialize the only candidate among an empty nested branch" in {
+    materializeOpt[MixedNestedWithEmptyBranchRoot].value mustBe
+      MixedNestedWithEmptyBranchSingleton
+  }
+
+  it should "not materialize a sum with only empty branches" in {
+    materializeOpt[OnlyEmptyBranchesRoot] mustBe empty
+  }
+
+  it should "reject multiple candidates even with an empty branch" in {
+    materializeOpt[MixedMultipleRoot] mustBe empty
+  }
+
   it should "not materialize sum with multiple variants" in {
     materializeOpt[SumWithMultipleVariants] mustBe empty
   }
@@ -524,7 +559,17 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
     val errors = typeCheckErrors("materialize[SumWithMultipleVariants]")
 
     errors.map(_.message).find(_.contains("variants")).value mustBe
-      "Sum type MaterializeSpec.this.SumWithMultipleVariants has 3 variants; only sums with exactly one variant can be materialized."
+      "Sum type MaterializeSpec.this.SumWithMultipleVariants has 3 materializable variants; only sums with exactly one materializable variant can be materialized."
+  }
+
+  it should "identify nested sum ambiguity" in {
+    val errors = typeCheckErrors("materialize[MixedNestedRoot]")
+
+    errors
+      .map(_.message)
+      .find(_.contains("materializable variants"))
+      .value mustBe
+      "Sum type MaterializeSpec.this.MixedNestedRoot has 2 materializable variants; only sums with exactly one materializable variant can be materialized."
   }
 
   behavior of "other types"
@@ -552,6 +597,44 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
 
   private sealed trait SingletonSum
   private case object SingletonSumVariant extends SingletonSum
+
+  private sealed trait NestedSingletonRoot
+  private sealed trait NestedSingletonBranch extends NestedSingletonRoot
+  private case object NestedSingletonLeaf extends NestedSingletonBranch
+
+  private sealed trait DeepSingletonRoot
+  private sealed trait DeepSingletonBranch extends DeepSingletonRoot
+  private sealed trait DeepSingletonInner extends DeepSingletonBranch
+  private case object DeepSingletonLeaf extends DeepSingletonInner
+
+  private sealed trait NestedProductRoot
+  private sealed trait NestedProductBranch extends NestedProductRoot
+  private case class NestedProductLeaf(value: 5) extends NestedProductBranch
+
+  private sealed trait NestedMultipleRoot
+  private sealed trait NestedMultipleBranch extends NestedMultipleRoot
+  private case object NestedFirstLeaf extends NestedMultipleBranch
+  private case object NestedSecondLeaf extends NestedMultipleBranch
+
+  private sealed trait MixedNestedRoot
+  private case object MixedNestedSingleton extends MixedNestedRoot
+  private sealed trait MixedNestedBranch extends MixedNestedRoot
+  private case object MixedNestedLeaf extends MixedNestedBranch
+
+  private sealed trait MixedNestedWithEmptyBranchRoot
+  private case object MixedNestedWithEmptyBranchSingleton
+      extends MixedNestedWithEmptyBranchRoot
+  private sealed trait MixedNestedWithEmptyBranch
+      extends MixedNestedWithEmptyBranchRoot
+
+  private sealed trait OnlyEmptyBranchesRoot
+  private sealed trait OnlyEmptyBranchesLeft extends OnlyEmptyBranchesRoot
+  private sealed trait OnlyEmptyBranchesRight extends OnlyEmptyBranchesRoot
+
+  private sealed trait MixedMultipleRoot
+  private case object MixedMultipleSingleton extends MixedMultipleRoot
+  private sealed trait MixedMultipleEmptyBranch extends MixedMultipleRoot
+  private case object MixedMultipleLeaf extends MixedMultipleRoot
 
   private sealed trait SumWithMultipleVariants
   private case object FirstVariant extends SumWithMultipleVariants
