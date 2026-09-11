@@ -20,7 +20,7 @@ The library currently cross-builds for Scala 3.8.x and 3.9.x.
 - Recursively materialize tuples: `(1, "abc", true)`
 - Recursively materialize named tuples: `(a = 1, b = "abc", c = true)`
 - Materialize case classes via `Mirror.ProductOf`
-- Materialize sealed trait based ADTs with exactly one variant via `Mirror.SumOf`
+- Materialize sealed trait based ADTs with exactly one materializable variant
 - Materialize named tuples while preserving their labels
 - Materialize supported intersection types such as `5 & Int`
 - Override built-in rules with `CustomMaterialize[A]`
@@ -120,6 +120,41 @@ val x: SingletonVariant.type = materialize[SomeADT]
 // x: SingletonVariant
 ```
 
+### Materialize a parameterized ADT
+
+For parameterized ADTs, the macro considers only variants compatible with the
+requested result type. This makes GADT-like definitions possible:
+
+```scala
+import me.cytrowski.mat.*
+
+sealed trait Expr[A]
+case object IntExpr extends Expr[Int]
+case object BooleanExpr extends Expr[Boolean]
+
+val intExpr: IntExpr.type = materialize[Expr[Int]]
+// intExpr: IntExpr
+```
+
+The requested type must still have exactly one materializable candidate. If
+multiple variants match, materialization is rejected as ambiguous. A concrete
+variant that cannot be materialized also blocks the sum instead of being
+silently ignored.
+
+The same rule applies to recursive branches. They are detected and reported as
+unsupported rather than expanded indefinitely:
+
+```scala
+import me.cytrowski.mat.*
+
+sealed trait Tree
+case object EmptyTree extends Tree
+case class Branch(next: Tree) extends Tree
+
+val tree: Option[Tree] = materializeOpt[Tree]
+// tree: None
+```
+
 ### Provide custom materialization logic
 
 `CustomMaterialize[A]` takes precedence over the built-in materialization rules used by the macro.
@@ -191,7 +226,13 @@ val evidence: Materialize.Aux[SomeADT, SingletonVariant.type] =
 When `materialize[A]` cannot derive a value, compilation fails with a diagnostic
 that explains where derivation stopped. For example, an unsupported field in a
 product is reported together with its field name and type. Nested products and
-tuples preserve the complete path to the unsupported value.
+tuples preserve the complete path to the unsupported value. Sum diagnostics
+also identify the rejected variant and continue with the reason for its
+failure.
+
+Recursive products and recursive ADT branches are detected during derivation.
+They return `None` from `materializeOpt[A]` and produce a regular diagnostic
+from `materialize[A]`; derivation does not recurse indefinitely.
 
 Use `materializeOpt[A]` when failure is expected and should be represented as
 `None` instead of a compilation error.
@@ -205,11 +246,13 @@ The built-in derivation supports:
 - unions with exactly one materializable variant,
 - tuples and named tuples whose elements are supported,
 - case-class products whose fields are supported,
-- singleton sums with exactly one variant, including nested singleton sums,
+- sums with exactly one materializable candidate, including nested and
+  parameterized ADTs,
 - custom values supplied through `CustomMaterialize[A]`.
 
 Types outside these forms, such as ordinary abstract types, sums with multiple
-variants, or ambiguous unions, are rejected by `materialize[A]` and return
+materializable candidates, sums with a concrete rejected variant, recursive
+branches, or ambiguous unions, are rejected by `materialize[A]` and return
 `None` from `materializeOpt[A]`.
 
 ### Cross-building and tests
