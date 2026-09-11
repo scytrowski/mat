@@ -128,6 +128,12 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
     )
   }
 
+  it should "materialize a local product without generated symbol references" in {
+    case class LocalProduct[A](value: A)
+
+    materializeOpt[LocalProduct[5]].value mustBe LocalProduct(5)
+  }
+
   it should "not materialize product with non materializable element" in {
     materializeOpt[MultipleElementsProduct["def", false, Int]] mustBe empty
   }
@@ -190,6 +196,22 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
     tuple mustBe (true, "test")
     product mustBe SingleElementProduct(5)
     singleton mustBe SingletonSumVariant
+  }
+
+  it should "support Materialize as a context bound" in {
+    def requiresMaterialize[A: Materialize]: A = materialize[A]
+
+    val value: SingleElementProduct[5] =
+      requiresMaterialize[SingleElementProduct[5]]
+
+    value mustBe SingleElementProduct(5)
+  }
+
+  it should "preserve the precise output type in Materialize evidence" in {
+    val evidence: Materialize.Aux[SingletonSum, SingletonSumVariant.type] =
+      summon[Materialize[SingletonSum]]
+
+    evidence() mustBe SingletonSumVariant
   }
 
   it should "expose None as an Option for unsupported types" in {

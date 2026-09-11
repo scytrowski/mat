@@ -4,7 +4,7 @@ package me.cytrowski.mat
   * for values of type `A`.
   *
   * This trait can be implemented to provide custom materialization rules for
-  * types that are not handled by the default `Materialize` implementation.
+  * types that are not handled by the built-in macro rules.
   *
   * The intended use case is for library authors or advanced users who want to
   * enable materialization of types that require special treatment or fall
@@ -12,7 +12,7 @@ package me.cytrowski.mat
   * sums).
   *
   * When a `CustomMaterialize[A]` instance is in scope, it takes precedence over
-  * the built-in `Materialize[A]` instances and can override their behavior.
+  * the built-in macro rules and can override their behavior.
   */
 trait CustomMaterialize[A]:
   /** The resulting type of the materialized value. */

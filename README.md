@@ -8,7 +8,7 @@
 
 **`mat`** is a lightweight Scala 3 library for materializing types into values at compile time.
 
-It provides a typeclass-based approach for turning types like tuples, literal types, or case classes into values using `inline` and `Mirror`.
+It provides a macro-based approach for turning types like tuples, literal types, or case classes into values using `inline` and `Mirror`.
 
 ---
 
@@ -89,7 +89,7 @@ val x: SingletonVariant.type = materialize[SomeADT]
 
 ### Provide custom materialization logic
 
-`CustomMaterialize[A]` takes precedence over the built-in materialization rules.
+`CustomMaterialize[A]` takes precedence over the built-in materialization rules used by the macro.
 
 ```scala
 import me.cytrowski.mat.*
@@ -109,10 +109,12 @@ val x: SomeClass = materialize[SomeClass]
 
 ### Require a materializable type
 
+`Materialize[A]` is derived by the macro and can be used as a context bound.
+
 ```scala
 import me.cytrowski.mat.*
 
-def doSomethingWithMaterializableType[A: Materialize] = ???
+def doSomethingWithMaterializableType[A: Materialize](value: A) = value
 ```
 
 ---
