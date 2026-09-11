@@ -29,10 +29,9 @@ private[mat] object MaterializeMacros:
         cause: MaterializeError
     )
     case UnsupportedSum(owner: String, variants: Int)
-    case UnsupportedSumVariant(
+    case UnsupportedSumVariants(
         owner: String,
-        variantType: String,
-        cause: MaterializeError
+        variants: List[(String, MaterializeError)]
     )
     case MissingProductMirror(owner: String)
     case SingleVariant(
@@ -53,8 +52,17 @@ private[mat] object MaterializeMacros:
         s"Field '$name' of $owner ($fieldType) cannot be materialized: ${cause.message}"
       case UnsupportedSum(owner, variants) =>
         s"Sum type $owner has $variants materializable variants; only sums with exactly one materializable variant can be materialized."
-      case UnsupportedSumVariant(owner, variantType, cause) =>
-        s"Sum type $owner cannot be materialized because variant $variantType cannot be materialized: ${cause.message}"
+      case UnsupportedSumVariants(owner, variants) =>
+        variants match
+          case (variantType, cause) :: Nil =>
+            s"Sum type $owner cannot be materialized because variant $variantType cannot be materialized: ${cause.message}"
+          case _ =>
+            val details = variants
+              .map { case (variantType, cause) =>
+                s"$variantType (${cause.message})"
+              }
+              .mkString(", ")
+            s"Sum type $owner cannot be materialized because these variants cannot be materialized: $details."
       case MissingProductMirror(owner) =>
         s"Product type $owner has no usable Mirror.ProductOf instance."
       case SingleVariant(owner, variantType, cause) =>
@@ -500,32 +508,28 @@ private[mat] object MaterializeMacros:
           (childType, error)
       }
 
+      def rejectedSum(
+          failures: List[(TypeRepr, MaterializeError)]
+      ): Option[
+        Either[MaterializeError, (TypeRepr, Expr[Any])]
+      ] =
+        Some(
+          Left(
+            MaterializeError.UnsupportedSumVariants(
+              owner.show,
+              failures.map { case (variantType, error) =>
+                (variantType.show, error)
+              }
+            )
+          )
+        )
+
       successful match
         case result :: Nil if blockingFailures.isEmpty => Some(Right(result))
         case result :: Nil                             =>
-          blockingFailures.headOption match
-            case Some((variantType, error)) =>
-              Some(
-                Left(
-                  MaterializeError.UnsupportedSumVariant(
-                    owner.show,
-                    variantType.show,
-                    error
-                  )
-                )
-              )
-            case None => Some(Right(result))
+          rejectedSum(blockingFailures)
         case Nil if blockingFailures.nonEmpty =>
-          val (variantType, error) = blockingFailures.head
-          Some(
-            Left(
-              MaterializeError.UnsupportedSumVariant(
-                owner.show,
-                variantType.show,
-                error
-              )
-            )
-          )
+          rejectedSum(blockingFailures)
         case Nil =>
           Some(
             Left(

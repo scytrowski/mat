@@ -387,6 +387,10 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
     materializeOpt[GenericRecursiveRoot[5]] mustBe None
   }
 
+  it should "reject a sum with multiple unsupported variants" in {
+    materializeOpt[MultipleRejectedRoot] mustBe None
+  }
+
   it should "not materialize sum with multiple variants" in {
     materializeOpt[SumWithMultipleVariants] mustBe empty
   }
@@ -637,6 +641,11 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
       "Sum type MaterializeSpec.this.GenericRecursiveRoot[5] cannot be materialized because variant MaterializeSpec.this.GenericRecursiveNode[5] cannot be materialized: Field 'next' of MaterializeSpec.this.GenericRecursiveNode[5] (MaterializeSpec.this.GenericRecursiveRoot[5]) cannot be materialized: Type MaterializeSpec.this.GenericRecursiveRoot[5] cannot be materialized. Supported forms are literal types, tuples, products, single-variant sums, or CustomMaterialize."
   }
 
+  it should "explain all unsupported sum variants" in {
+    diagnostic("materialize[MultipleRejectedRoot]") mustBe
+      "Sum type MaterializeSpec.this.MultipleRejectedRoot cannot be materialized because these variants cannot be materialized: MaterializeSpec.this.FirstRejected (Field 'value' of MaterializeSpec.this.FirstRejected (java.lang.String) cannot be materialized: Type java.lang.String cannot be materialized. Supported forms are literal types, tuples, products, single-variant sums, or CustomMaterialize.), MaterializeSpec.this.SecondRejected (Field 'value' of MaterializeSpec.this.SecondRejected (scala.Int) cannot be materialized: Type scala.Int cannot be materialized. Supported forms are literal types, tuples, products, single-variant sums, or CustomMaterialize.)."
+  }
+
   behavior of "other types"
 
   it should "materialize type lambda resulting in constant type" in {
@@ -713,6 +722,10 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
       value: A,
       next: GenericRecursiveRoot[A]
   ) extends GenericRecursiveRoot[A]
+
+  private sealed trait MultipleRejectedRoot
+  private case class FirstRejected(value: String) extends MultipleRejectedRoot
+  private case class SecondRejected(value: Int) extends MultipleRejectedRoot
 
   private sealed trait ParameterizedResult[+A]
   private case object ParameterizedEmpty extends ParameterizedResult[Nothing]
