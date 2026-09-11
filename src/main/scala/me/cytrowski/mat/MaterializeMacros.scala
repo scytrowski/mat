@@ -7,10 +7,13 @@ import scala.quoted.*
 /** Implementation of the materialization macro.
   *
   * Values are built using ordinary expressions, `ValueOf` and
-  * `Mirror.fromTuple`. The implementation deliberately does not emit
-  * constructor calls or `Ref`s to user-defined symbols.
+  * `Mirror.fromTuple`. Product values are constructed through their mirrors;
+  * singleton variants use references to their companion modules.
   */
 private[mat] object MaterializeMacros:
+  private final class DerivationContext:
+    val activeTypes = scala.collection.mutable.Set.empty[String]
+
   private enum MaterializeError:
     case UnsupportedType(tpe: String)
     case TupleElement(
@@ -58,6 +61,7 @@ private[mat] object MaterializeMacros:
 
   def materializeImpl[A: Type](using Quotes): Expr[Any] =
     import quotes.reflect.*
+    given DerivationContext = new DerivationContext
 
     Expr.summon[Materialize[A]] match
       case Some(materialize) =>
@@ -68,6 +72,8 @@ private[mat] object MaterializeMacros:
           case Left(error)       => report.errorAndAbort(error.message)
 
   def materializeInstanceImpl[A: Type](using Quotes): Expr[Materialize[A]] =
+    given DerivationContext = new DerivationContext
+
     derive[A] match
       case Right((outType, value)) =>
         outType.asType match
@@ -78,17 +84,26 @@ private[mat] object MaterializeMacros:
       case Left(error) => quotes.reflect.report.errorAndAbort(error.message)
 
   def materializeOptImpl[A: Type](using Quotes): Expr[Any] =
+    given DerivationContext = new DerivationContext
+
     derive[A] match
       case Right((_, value)) => '{ Some($value) }
       case Left(_)           => '{ None }
 
   private def derive[A: Type](using
-      Quotes
+      quotes: Quotes,
+      context: DerivationContext
   ): Either[MaterializeError, (quotes.reflect.TypeRepr, Expr[Any])] =
-    deriveAttempt[A].getOrElse(Left(unsupportedType[A]))
+    val key = quotes.reflect.TypeRepr.of[A].dealias.show
+    if context.activeTypes.contains(key) then Left(unsupportedType[A])
+    else
+      context.activeTypes += key
+      try deriveAttempt[A].getOrElse(Left(unsupportedType[A]))
+      finally context.activeTypes -= key
 
   private def deriveAttempt[A: Type](using
-      Quotes
+      Quotes,
+      DerivationContext
   ): Option[
     Either[MaterializeError, (quotes.reflect.TypeRepr, Expr[Any])]
   ] =
@@ -127,7 +142,8 @@ private[mat] object MaterializeMacros:
       )
 
   private def deriveIntersection[A: Type](using
-      Quotes
+      Quotes,
+      DerivationContext
   ): Option[
     Either[MaterializeError, (quotes.reflect.TypeRepr, Expr[Any])]
   ] =
@@ -161,7 +177,8 @@ private[mat] object MaterializeMacros:
       case _ => None
 
   private def deriveUnion[A: Type](using
-      Quotes
+      Quotes,
+      DerivationContext
   ): Option[
     Either[MaterializeError, (quotes.reflect.TypeRepr, Expr[Any])]
   ] =
@@ -216,7 +233,8 @@ private[mat] object MaterializeMacros:
       case _ => None
 
   private def deriveNamedTuple[A: Type](using
-      Quotes
+      Quotes,
+      DerivationContext
   ): Option[
     Either[MaterializeError, (quotes.reflect.TypeRepr, Expr[Any])]
   ] =
@@ -254,7 +272,8 @@ private[mat] object MaterializeMacros:
       case _ => None
 
   private def deriveTuple[A: Type](using
-      Quotes
+      Quotes,
+      DerivationContext
   ): Option[
     Either[MaterializeError, (quotes.reflect.TypeRepr, Expr[Any])]
   ] =
@@ -270,7 +289,8 @@ private[mat] object MaterializeMacros:
       case _ => None
 
   private def deriveTupleElements(using
-      Quotes
+      Quotes,
+      DerivationContext
   )(
       tpe: quotes.reflect.TypeRepr,
       owner: String,
@@ -313,7 +333,8 @@ private[mat] object MaterializeMacros:
       case _ => Left(unsupportedType(tpe))
 
   private def deriveProduct[A: Type](using
-      Quotes
+      Quotes,
+      DerivationContext
   ): Option[
     Either[MaterializeError, (quotes.reflect.TypeRepr, Expr[Any])]
   ] =
@@ -391,7 +412,8 @@ private[mat] object MaterializeMacros:
       )
 
   private def deriveSingletonSum[A: Type](using
-      Quotes
+      Quotes,
+      DerivationContext
   ): Option[
     Either[MaterializeError, (quotes.reflect.TypeRepr, Expr[Any])]
   ] =
@@ -419,19 +441,37 @@ private[mat] object MaterializeMacros:
           case _ => Left(unsupportedType[A])
       )
     else
-      val childResults = symbol.children.map { child =>
-        if child.flags.is(Flags.Module) then
-          child.termRef.asType match
-            case '[childType] =>
+      def tupleTypes(tpe: TypeRepr): List[TypeRepr] =
+        tpe.asType match
+          case '[EmptyTuple]   => Nil
+          case '[head *: tail] =>
+            TypeRepr.of[head] :: tupleTypes(TypeRepr.of[tail])
+          case _ => Nil
+
+      val variants = Expr
+        .summon[Mirror.SumOf[A]]
+        .flatMap { sum =>
+          sum.asTerm.tpe.widen.asType match
+            case '[Mirror.SumOf[A] { type MirroredElemTypes = elems }] =>
+              Some(tupleTypes(TypeRepr.of[elems]))
+            case _ => None
+        }
+        .getOrElse(symbol.children.map(_.typeRef))
+
+      val childResults = variants.filter(_ <:< owner).map { variantType =>
+        variantType.asType match
+          case '[variant] =>
+            if variantType.typeSymbol.flags.is(Flags.Module) then
               (
-                TypeRepr.of[childType],
-                Right((TypeRepr.of[childType], Ref(child).asExpr))
+                variantType,
+                Right(
+                  (
+                    variantType,
+                    Ref(variantType.typeSymbol.companionModule).asExpr
+                  )
+                )
               )
-        else
-          val childType = child.typeRef
-          childType.asType match
-            case '[childType] =>
-              (childType, derive[childType])
+            else (variantType, derive[variant])
       }
       val successful = childResults.collect { case (_, Right(result)) =>
         result

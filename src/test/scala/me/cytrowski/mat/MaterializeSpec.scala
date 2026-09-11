@@ -3,6 +3,7 @@ package me.cytrowski.mat
 import org.scalatest.OptionValues
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.must.Matchers
+import scala.annotation.nowarn
 import scala.compiletime.testing.typeCheckErrors
 
 class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
@@ -351,6 +352,29 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
     materializeOpt[MixedMultipleRoot] mustBe empty
   }
 
+  it should "reject ambiguous parameterized ADTs" in {
+    materializeOpt[ParameterizedResult[5]] mustBe None
+    materializeOpt[ParameterizedResult[String]] mustBe None
+  }
+
+  it should "filter GADT variants by the requested result type" in {
+    materializeOpt[TypedExpr[Int]] mustBe Some(TypedInt)
+    materializeOpt[TypedExpr[Boolean]] mustBe Some(TypedBoolean)
+    materializeOpt[TypedExpr[String]] mustBe None
+  }
+
+  it should "instantiate compatible generic product variants" in {
+    materializeOpt[InvariantResult[5]].value mustBe InvariantValue(5)
+    materializeOpt[InvariantResult[String]] mustBe None
+  }
+
+  it should "reject ambiguous and bottom-typed Option variants" in {
+    materializeOpt[Option[5]] mustBe None
+    @nowarn("msg=Match type reduction failed")
+    val nothingResult: Any = materializeOpt[Option[Nothing]]
+    nothingResult mustBe None
+  }
+
   it should "not materialize sum with multiple variants" in {
     materializeOpt[SumWithMultipleVariants] mustBe empty
   }
@@ -572,6 +596,20 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
       "Sum type MaterializeSpec.this.MixedNestedRoot has 2 materializable variants; only sums with exactly one materializable variant can be materialized."
   }
 
+  it should "identify Option[5] ambiguity" in {
+    val errors = typeCheckErrors("materialize[Option[5]]")
+
+    errors.map(_.message).find(_.contains("variants")).value mustBe
+      "Sum type scala.Option[5] has 2 materializable variants; only sums with exactly one materializable variant can be materialized."
+  }
+
+  it should "identify Option[Nothing] ambiguity" in {
+    val errors = typeCheckErrors("materialize[Option[Nothing]]")
+
+    errors.map(_.message).find(_.contains("variants")).value mustBe
+      "Sum type scala.Option[scala.Nothing] has 1 materializable variants; only sums with exactly one materializable variant can be materialized."
+  }
+
   behavior of "other types"
 
   it should "materialize type lambda resulting in constant type" in {
@@ -635,6 +673,19 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
   private case object MixedMultipleSingleton extends MixedMultipleRoot
   private sealed trait MixedMultipleEmptyBranch extends MixedMultipleRoot
   private case object MixedMultipleLeaf extends MixedMultipleRoot
+
+  private sealed trait ParameterizedResult[+A]
+  private case object ParameterizedEmpty extends ParameterizedResult[Nothing]
+  private case class ParameterizedValue[A](value: A)
+      extends ParameterizedResult[A]
+
+  private sealed trait TypedExpr[A]
+  private case object TypedInt extends TypedExpr[Int]
+  private case object TypedBoolean extends TypedExpr[Boolean]
+
+  private sealed trait InvariantResult[A]
+  private case object InvariantEmpty extends InvariantResult[Nothing]
+  private case class InvariantValue[A](value: A) extends InvariantResult[A]
 
   private sealed trait SumWithMultipleVariants
   private case object FirstVariant extends SumWithMultipleVariants
