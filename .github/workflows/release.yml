@@ -104,9 +104,8 @@ jobs:
           fi
 
           rm -rf "$publish_dir/$RELEASE_TAG" "$publish_dir/latest"
-          mkdir -p "$publish_dir/$RELEASE_TAG" "$publish_dir/latest"
+          mkdir -p "$publish_dir/$RELEASE_TAG"
           cp -a target/scala-3.8.4/api/. "$publish_dir/$RELEASE_TAG/"
-          cp -a target/scala-3.8.4/api/. "$publish_dir/latest/"
 
           git -C "$publish_dir" config user.name "github-actions[bot]"
           git -C "$publish_dir" config user.email "41898282+github-actions[bot]@users.noreply.github.com"

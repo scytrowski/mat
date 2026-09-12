@@ -356,7 +356,6 @@ named after the release tag in the `scaladoc` branch:
 
 ```text
 scaladoc/
-├── latest/
 ├── v1.0.0/
 ├── v1.1.0/
 └── v1.2.0/
@@ -364,10 +363,11 @@ scaladoc/
 
 Existing version directories are preserved, so downstream websites or other
 documentation tooling can fetch documentation for a specific release. The
-`latest/` directory is updated at the same time and always points to the newest
-release. The `scaladoc` branch is an artifact store only; the release workflow
-does not deploy GitHub Pages. A separate documentation project can consume the
-branch and deploy it to the target hosting provider.
+`scaladoc` branch is an artifact store only; the release workflow does not
+deploy GitHub Pages. A separate documentation project can consume the branch,
+generate `/projects/mat/docs/versions.json`, and deploy the documentation to
+the target hosting provider. Generated Scaladoc pages are configured to load
+that dictionary from this fixed path.
 
 To preview the documentation locally, run:
 

@@ -65,6 +65,14 @@ lazy val root = (project in file("."))
       val log = streams.value.log
       ScaladocAssets.vendor((Compile / doc).value, log)
     },
+    Compile / doc / scalacOptions ++= Seq(
+      "-project",
+      name.value,
+      "-project-version",
+      version.value,
+      "-versions-dictionary-url",
+      "/projects/mat/docs/versions.json"
+    ),
     // https://mvnrepository.com/artifact/org.scalatest/scalatest
     libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.20" % Test
   )
