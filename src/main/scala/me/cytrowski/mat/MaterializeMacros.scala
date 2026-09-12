@@ -113,10 +113,13 @@ private[mat] object MaterializeMacros:
     import quotes.reflect.*
     given DerivationContext = new DerivationContext
 
+    val derivedMaterialize =
+      Symbol.requiredMethod("me.cytrowski.mat.Materialize.derived")
     val explicitMaterialize =
-      Implicits.search(TypeRepr.of[Materialize[A]]) match
-        case success: ImplicitSearchSuccess
-            if success.tree.symbol != Symbol.noSymbol =>
+      Implicits.searchIgnoring(TypeRepr.of[Materialize[A]])(
+        derivedMaterialize
+      ) match
+        case success: ImplicitSearchSuccess =>
           success.tree.tpe.widen.asType match
             case '[Materialize[A] { type Out = out }] =>
               val materialize = success.tree.asExprOf[Materialize[A]]
