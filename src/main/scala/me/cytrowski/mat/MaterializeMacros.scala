@@ -114,7 +114,7 @@ private[mat] object MaterializeMacros:
     given DerivationContext = new DerivationContext
 
     val derivedMaterialize =
-      Symbol.requiredMethod("me.cytrowski.mat.Materialize.derived")
+      TypeRepr.of[Materialize.type].typeSymbol.methodMember("derived").head
     val explicitMaterialize =
       Implicits.searchIgnoring(TypeRepr.of[Materialize[A]])(
         derivedMaterialize
