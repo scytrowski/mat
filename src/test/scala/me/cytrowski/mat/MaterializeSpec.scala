@@ -597,6 +597,24 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
     precise mustBe Some(IntersectionLeaf)
   }
 
+  it should "prefer explicit Materialize over CustomMaterialize" in {
+    given CustomMaterialize[IntersectionBase] with
+      type Out = IntersectionLeaf.type
+      def apply(): IntersectionLeaf.type = IntersectionLeaf
+    given Materialize.Aux[IntersectionBase, ExplicitMaterializeLeaf.type] =
+      Materialize.fromValue[IntersectionBase, ExplicitMaterializeLeaf.type](
+        ExplicitMaterializeLeaf
+      )
+
+    val value: ExplicitMaterializeLeaf.type =
+      materialize[IntersectionBase]
+    val optional: Some[ExplicitMaterializeLeaf.type] =
+      materializeOpt[IntersectionBase]
+
+    value mustBe ExplicitMaterializeLeaf
+    optional mustBe Some(ExplicitMaterializeLeaf)
+  }
+
   it should "use imported explicit Materialize evidence in materializeOpt" in {
     object ImportedEvidence:
       given Materialize.Aux[IntersectionBase, IntersectionLeaf.type] =
@@ -923,6 +941,7 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
   private case object IntersectionLeaf
       extends IntersectionBase
       with IntersectionMarker
+  private case object ExplicitMaterializeLeaf extends IntersectionBase
 
   private sealed trait SingletonSum
   private case object SingletonSumVariant extends SingletonSum
