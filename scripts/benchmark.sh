@@ -4,6 +4,7 @@ set -euo pipefail
 
 output_file="${1:-benchmark-results.tsv}"
 repetitions="${BENCHMARK_REPETITIONS:-3}"
+benchmark_scala_version="3.8.4"
 
 if ! [[ "$repetitions" =~ ^[1-9][0-9]*$ ]]; then
   echo "BENCHMARK_REPETITIONS must be a positive integer" >&2
@@ -22,6 +23,7 @@ for benchmark_kind in tuple product union; do
       sbt --batch \
         -Dmat.benchmark="$benchmark_kind" \
         -Dmat.size="$benchmark_size" \
+        "++$benchmark_scala_version" \
         "Benchmark / clean" \
         "Benchmark / compile"
 
