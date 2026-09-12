@@ -16,9 +16,9 @@ ThisBuild / publish / skip := scalaVersion.value != crossScalaVersions.value.hea
 ThisBuild / coverageMinimumStmtTotal := 90.0
 ThisBuild / coverageMinimumBranchTotal := 85.0
 ThisBuild / coverageFailOnMinimum := true
-ThisBuild / description := "Scala 3 library for compile-time materialization of literal values, tuples, products, unions, intersections and singleton-sum ADTs"
+ThisBuild / description := "Scala 3 macro library for compile-time materialization of literal types, tuples, named tuples, products, unions, intersections and singleton-sum ADTs"
 ThisBuild / licenses := Seq(
-  "MIT" -> url("https://github.com/scytrowski/mat/blob/master/LICENSE")
+  "MIT" -> url("https://github.com/scytrowski/mat/blob/main/LICENSE")
 )
 ThisBuild / homepage := Some(url("https://github.com/scytrowski/mat"))
 ThisBuild / scmInfo := Some(
