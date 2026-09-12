@@ -1,0 +1,10 @@
+benchmark	size	elapsed_ms
+tuple	16	9664
+tuple	24	10019
+tuple	32	10322
+product	16	9935
+product	24	10455
+product	32	10503
+union	16	9024
+union	24	9260
+union	32	9358
