@@ -11,6 +11,10 @@
 It provides a macro-based approach for turning types like tuples, literal types, or case classes into values using `inline` and `Mirror`.
 
 The library currently cross-builds for Scala 3.8.x and 3.9.x.
+Both versions are tested and packaged in CI. Since Scala 3.8.x and 3.9.x
+share the `_3` binary artifact suffix, releases publish one artifact built
+with the oldest supported compiler, Scala 3.8.4, which is resolved by both
+Scala versions.
 
 ---
 
@@ -35,9 +39,8 @@ Add `mat` to an SBT project using the cross-building `%%` operator:
 libraryDependencies += "me.cytrowski" %% "mat" % "<version>"
 ```
 
-The selected artifact matches the Scala version used by the project: Scala
-3.8.x projects resolve the 3.8.x artifact and Scala 3.9.x projects resolve the
-3.9.x artifact.
+The `%%` operator selects the Scala 3 binary artifact for both Scala 3.8.x and
+3.9.x projects.
 
 ---
 
@@ -261,9 +264,10 @@ branches, or ambiguous unions, are rejected by `materialize[A]` and return
 
 ### Cross-building and tests
 
-The project produces artifacts for both supported Scala versions. During
-development, the complete test suite can be run for every configured Scala
-version with:
+The project compiles and packages the library for both supported Scala
+versions. The release publishes the single shared `_3` artifact described
+above. During development, the complete test suite can be run for every
+configured Scala version with:
 
 ```shell
 sbt +test

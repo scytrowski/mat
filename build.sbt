@@ -6,7 +6,10 @@ ThisBuild / version := {
 }
 ThisBuild / scalaVersion := "3.8.4"
 ThisBuild / crossScalaVersions := Seq("3.8.4", "3.9.0")
-ThisBuild / name := "mat"
+// Scala 3.8.x and 3.9.x share the `_3` artifact suffix. Cross-build both
+// versions for validation, but publish one artifact to avoid duplicate
+// coordinates in the release repository.
+ThisBuild / publish / skip := scalaVersion.value != crossScalaVersions.value.head
 ThisBuild / description := "Scala 3 library for type-level materialization of constant values, tuples, products and singleton sums"
 ThisBuild / licenses := Seq(
   "MIT" -> url("https://github.com/scytrowski/mat/blob/master/LICENSE")
