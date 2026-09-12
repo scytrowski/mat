@@ -11,40 +11,42 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
   private inline def diagnostics(inline code: String): List[String] =
     typeCheckErrors(code).map(_.message)
 
+  private def assertExactType[A](value: A): A = value
+
   behavior of "constants"
 
   it should "materialize unit" in {
-    materializeOpt[Unit].value mustBe ()
+    assertExactType[Unit](materializeOpt[Unit].value) mustBe ()
   }
 
   it should "materialize constant boolean" in {
-    materializeOpt[true].value mustBe true
+    assertExactType[true](materializeOpt[true].value) mustBe true
   }
 
   it should "materialize constant integer" in {
-    materializeOpt[1337].value mustBe 1337
+    assertExactType[1337](materializeOpt[1337].value) mustBe 1337
   }
 
   it should "materialize constant float" in {
-    materializeOpt[123.456].value mustBe 123.456
+    assertExactType[123.456](materializeOpt[123.456].value) mustBe 123.456
   }
 
   it should "materialize constant char" in {
-    materializeOpt['t'].value mustBe 't'
+    assertExactType['t'](materializeOpt['t'].value) mustBe 't'
   }
 
   it should "materialize constant string" in {
-    materializeOpt["abcdef"].value mustBe "abcdef"
+    assertExactType["abcdef"](materializeOpt["abcdef"].value) mustBe "abcdef"
   }
 
   behavior of "intersection types"
 
   it should "materialize an intersection with a literal type on the left" in {
-    materializeOpt[5 & Int].value mustBe 5
+    assertExactType[5](materializeOpt[5 & Int].value) mustBe 5
   }
 
   it should "materialize an intersection with a literal type on the right" in {
-    materializeOpt[Int & 5].value mustBe 5
+    assertExactType[5](materializeOpt[Int & 5].value) mustBe 5
   }
 
   it should "preserve the precise type of an intersection result" in {
@@ -64,8 +66,8 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
   }
 
   it should "materialize an intersection of the same literal type" in {
-    materializeOpt[5 & 5].value mustBe 5
-    materializeOpt[5 & 5 & 5].value mustBe 5
+    assertExactType[5](materializeOpt[5 & 5].value) mustBe 5
+    assertExactType[5](materializeOpt[5 & 5 & 5].value) mustBe 5
   }
 
   it should "preserve a narrowed output type through an intersection" in {
@@ -172,7 +174,7 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
   }
 
   it should "deduplicate repeated union variants" in {
-    materializeOpt[5 | 5].value mustBe 5
+    assertExactType[5](materializeOpt[5 | 5].value) mustBe 5
   }
 
   it should "not materialize an ambiguous union" in {
@@ -231,19 +233,27 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
   behavior of "tuples"
 
   it should "materialize empty tuple" in {
-    materializeOpt[EmptyTuple].value mustBe EmptyTuple
+    assertExactType[EmptyTuple](
+      materializeOpt[EmptyTuple].value
+    ) mustBe EmptyTuple
   }
 
   it should "materialize tuple with single element" in {
-    materializeOpt[5 *: EmptyTuple].value mustBe 5 *: EmptyTuple
+    assertExactType[5 *: EmptyTuple](
+      materializeOpt[5 *: EmptyTuple].value
+    ) mustBe 5 *: EmptyTuple
   }
 
   it should "materialize tuple with multiple elements" in {
-    materializeOpt[(false, "test", 9, 'd')].value mustBe (false, "test", 9, 'd')
+    assertExactType[(false, "test", 9, 'd')](
+      materializeOpt[(false, "test", 9, 'd')].value
+    ) mustBe (false, "test", 9, 'd')
   }
 
   it should "materialize nested empty tuple" in {
-    materializeOpt[("abc", EmptyTuple, 'c')].value mustBe (
+    assertExactType[("abc", EmptyTuple, 'c')](
+      materializeOpt[("abc", EmptyTuple, 'c')].value
+    ) mustBe (
       "abc",
       EmptyTuple,
       'c'
@@ -251,7 +261,9 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
   }
 
   it should "materialize nested tuple" in {
-    materializeOpt[(15, 13.15, ('a', true, "d"), false)].value mustBe (
+    assertExactType[(15, 13.15, ('a', true, "d"), false)](
+      materializeOpt[(15, 13.15, ('a', true, "d"), false)].value
+    ) mustBe (
       15,
       13.15,
       ('a', true, "d"),
@@ -266,11 +278,13 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
   behavior of "named tuples"
 
   it should "materialize named tuple with single element" in {
-    materializeOpt[(a: 5)].value mustBe ((a = 5))
+    assertExactType[(a: 5)](materializeOpt[(a: 5)].value) mustBe ((a = 5))
   }
 
   it should "materialize named tuple with multiple elements" in {
-    materializeOpt[(a: false, b: 'v', c: "ghi")].value mustBe ((
+    assertExactType[(a: false, b: 'v', c: "ghi")](
+      materializeOpt[(a: false, b: 'v', c: "ghi")].value
+    ) mustBe ((
       a = false,
       b = 'v',
       c = "ghi"
@@ -285,7 +299,9 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
   }
 
   it should "materialize nested named tuple" in {
-    materializeOpt[(a: 'u', b: 37, c: (d: 98.76, e: false))].value mustBe ((
+    assertExactType[(a: 'u', b: 37, c: (d: 98.76, e: false))](
+      materializeOpt[(a: 'u', b: 37, c: (d: 98.76, e: false))].value
+    ) mustBe ((
       a = 'u',
       b = 37,
       c = (d = 98.76, e = false)
@@ -313,11 +329,15 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
   behavior of "products"
 
   it should "materialize empty product" in {
-    materializeOpt[EmptyProduct.type].value mustBe EmptyProduct
+    assertExactType[EmptyProduct.type](
+      materializeOpt[EmptyProduct.type].value
+    ) mustBe EmptyProduct
   }
 
   it should "materialize product with single element" in {
-    materializeOpt[SingleElementProduct[5]].value mustBe SingleElementProduct(5)
+    assertExactType[SingleElementProduct[5]](
+      materializeOpt[SingleElementProduct[5]].value
+    ) mustBe SingleElementProduct(5)
   }
 
   it should "allow assigning a narrowed invariant product" in {
@@ -335,23 +355,37 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
   }
 
   it should "materialize product with multiple elements" in {
-    materializeOpt[
-      MultipleElementsProduct[false, 'z', "test"]
-    ].value mustBe MultipleElementsProduct(false, 'z', "test")
+    assertExactType[MultipleElementsProduct[false, 'z', "test"]](
+      materializeOpt[
+        MultipleElementsProduct[false, 'z', "test"]
+      ].value
+    ) mustBe MultipleElementsProduct(false, 'z', "test")
   }
 
   it should "materialize nested empty product" in {
-    materializeOpt[
+    assertExactType[
       MultipleElementsProduct[25, EmptyProduct.type, 'p']
-    ].value mustBe MultipleElementsProduct(25, EmptyProduct, 'p')
+    ](
+      materializeOpt[
+        MultipleElementsProduct[25, EmptyProduct.type, 'p']
+      ].value
+    ) mustBe MultipleElementsProduct(25, EmptyProduct, 'p')
   }
 
   it should "materialize nested product" in {
-    materializeOpt[MultipleElementsProduct[
-      "abc",
-      MultipleElementsProduct[true, 98.32, 'p'],
-      19
-    ]].value mustBe MultipleElementsProduct(
+    assertExactType[
+      MultipleElementsProduct[
+        "abc",
+        MultipleElementsProduct[true, 98.32, 'p'],
+        19
+      ]
+    ](
+      materializeOpt[MultipleElementsProduct[
+        "abc",
+        MultipleElementsProduct[true, 98.32, 'p'],
+        19
+      ]].value
+    ) mustBe MultipleElementsProduct(
       "abc",
       MultipleElementsProduct(true, 98.32, 'p'),
       19
@@ -393,7 +427,9 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
   it should "materialize a local product without generated symbol references" in {
     case class LocalProduct[A](value: A)
 
-    materializeOpt[LocalProduct[5]].value mustBe LocalProduct(5)
+    assertExactType[LocalProduct[5]](
+      materializeOpt[LocalProduct[5]].value
+    ) mustBe LocalProduct(5)
   }
 
   it should "not materialize product with non materializable element" in {
@@ -403,11 +439,15 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
   behavior of "sums"
 
   it should "materialize singleton sum" in {
-    materializeOpt[SingletonSum].value mustBe SingletonSumVariant
+    assertExactType[SingletonSumVariant.type](
+      materializeOpt[SingletonSum].value
+    ) mustBe SingletonSumVariant
   }
 
   it should "materialize a nested singleton sum" in {
-    materializeOpt[NestedSingletonRoot].value mustBe NestedSingletonLeaf
+    assertExactType[NestedSingletonLeaf.type](
+      materializeOpt[NestedSingletonRoot].value
+    ) mustBe NestedSingletonLeaf
   }
 
   it should "materialize a deeply nested singleton sum" in {
@@ -417,7 +457,9 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
   }
 
   it should "materialize a nested singleton sum containing a product" in {
-    materializeOpt[NestedProductRoot].value mustBe NestedProductLeaf(5)
+    assertExactType[NestedProductLeaf](
+      materializeOpt[NestedProductRoot].value
+    ) mustBe NestedProductLeaf(5)
   }
 
   it should "not materialize a nested sum with multiple variants" in {
@@ -429,7 +471,9 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
   }
 
   it should "materialize the only candidate among an empty nested branch" in {
-    materializeOpt[MixedNestedWithEmptyBranchRoot].value mustBe
+    assertExactType[MixedNestedWithEmptyBranchSingleton.type](
+      materializeOpt[MixedNestedWithEmptyBranchRoot].value
+    ) mustBe
       MixedNestedWithEmptyBranchSingleton
   }
 
@@ -449,14 +493,20 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
   it should "filter GADT variants by the requested result type" in {
     val intExpr: TypedInt.type = materialize[TypedExpr[Int]]
 
-    materializeOpt[TypedExpr[Int]] mustBe Some(TypedInt)
-    materializeOpt[TypedExpr[Boolean]] mustBe Some(TypedBoolean)
+    val intResult: Some[TypedInt.type] = materializeOpt[TypedExpr[Int]]
+    val booleanResult: Some[TypedBoolean.type] =
+      materializeOpt[TypedExpr[Boolean]]
+
+    intResult mustBe Some(TypedInt)
+    booleanResult mustBe Some(TypedBoolean)
     materializeOpt[TypedExpr[String]] mustBe None
     intExpr mustBe TypedInt
   }
 
   it should "instantiate compatible generic product variants" in {
-    materializeOpt[InvariantResult[5]].value mustBe InvariantValue(5)
+    assertExactType[InvariantValue[5]](
+      materializeOpt[InvariantResult[5]].value
+    ) mustBe InvariantValue(5)
     materializeOpt[InvariantResult[String]] mustBe None
   }
 
@@ -490,13 +540,17 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
   behavior of "enums"
 
   it should "materialize enum with single variant" in {
-    materializeOpt[SingleVariantEnum].value mustBe SingleVariantEnum.Variant
+    assertExactType[SingleVariantEnum.Variant.type](
+      materializeOpt[SingleVariantEnum].value
+    ) mustBe SingleVariantEnum.Variant
   }
 
   it should "materialize enum variant" in {
-    materializeOpt[
-      SingleVariantEnum.Variant.type
-    ].value mustBe SingleVariantEnum.Variant
+    assertExactType[SingleVariantEnum.Variant.type](
+      materializeOpt[
+        SingleVariantEnum.Variant.type
+      ].value
+    ) mustBe SingleVariantEnum.Variant
   }
 
   it should "not materialize enum with multiple variants" in {
@@ -504,16 +558,22 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
   }
 
   it should "materialize compatible variants of a parameterized product enum" in {
-    materializeOpt[ParameterizedProductEnum[5]].value mustBe
+    assertExactType[ParameterizedProductEnum.Five](
+      materializeOpt[ParameterizedProductEnum[5]].value
+    ) mustBe
       ParameterizedProductEnum.Five(5)
-    materializeOpt[ParameterizedProductEnum["text"]].value mustBe
+    assertExactType[ParameterizedProductEnum.Text](
+      materializeOpt[ParameterizedProductEnum["text"]].value
+    ) mustBe
       ParameterizedProductEnum.Text("text")
     materializeOpt[ParameterizedProductEnum[Boolean]] mustBe None
     materializeOpt[ParameterizedProductEnum[Any]] mustBe None
   }
 
   it should "materialize a generic product enum variant" in {
-    materializeOpt[GenericProductEnum[5]].value mustBe
+    assertExactType[GenericProductEnum.Value[5]](
+      materializeOpt[GenericProductEnum[5]].value
+    ) mustBe
       GenericProductEnum.Value(5)
     materializeOpt[GenericProductEnum[String]] mustBe None
   }
@@ -521,9 +581,9 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
   behavior of "custom materialization"
 
   it should "materialize type using custom implementation" in {
-    materializeOpt[
-      ClassWithCustomMaterialization
-    ].value mustBe ClassWithCustomMaterialization.instance
+    assertExactType[ClassWithCustomMaterialization](
+      materializeOpt[ClassWithCustomMaterialization].value
+    ) mustBe ClassWithCustomMaterialization.instance
   }
 
   it should "prefer custom materialization over built-in implementation" in {
@@ -534,7 +594,7 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
       override def apply(): Unit =
         customMaterializationUsed = true
 
-    materializeOpt[Unit].value mustBe ()
+    assertExactType[Unit](materializeOpt[Unit].value) mustBe ()
     customMaterializationUsed mustBe true
   }
 
@@ -847,22 +907,34 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
   behavior of "other types"
 
   it should "materialize type lambda resulting in constant type" in {
-    materializeOpt[TypeLambda[true]].value mustBe Some("test")
-    materializeOpt[TypeLambda[false]].value mustBe None
+    assertExactType[Some["test"]](
+      materializeOpt[TypeLambda[true]].value
+    ) mustBe Some("test")
+    assertExactType[None.type](
+      materializeOpt[TypeLambda[false]].value
+    ) mustBe None
   }
 
   it should "materialize a literal type alias" in {
-    materializeOpt[LiteralAlias].value mustBe 5
+    assertExactType[5](materializeOpt[LiteralAlias].value) mustBe 5
   }
 
   it should "reuse materialization of repeated nested types" in {
-    materializeOpt[
+    assertExactType[
       MultipleElementsProduct[
         SingleElementProduct[5],
         SingleElementProduct[5],
         SingleElementProduct[5]
       ]
-    ].value mustBe MultipleElementsProduct(
+    ](
+      materializeOpt[
+        MultipleElementsProduct[
+          SingleElementProduct[5],
+          SingleElementProduct[5],
+          SingleElementProduct[5]
+        ]
+      ].value
+    ) mustBe MultipleElementsProduct(
       SingleElementProduct(5),
       SingleElementProduct(5),
       SingleElementProduct(5)
@@ -888,8 +960,12 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
   }
 
   it should "materialize compatible variants of a generic enum" in {
-    materializeOpt[GenericEnum[Int]].value mustBe GenericEnum.IntValue
-    materializeOpt[GenericEnum[Boolean]].value mustBe GenericEnum.BooleanValue
+    assertExactType[GenericEnum.IntValue.type](
+      materializeOpt[GenericEnum[Int]].value
+    ) mustBe GenericEnum.IntValue
+    assertExactType[GenericEnum.BooleanValue.type](
+      materializeOpt[GenericEnum[Boolean]].value
+    ) mustBe GenericEnum.BooleanValue
     materializeOpt[GenericEnum[String]] mustBe None
   }
 
