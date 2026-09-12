@@ -30,6 +30,33 @@ jobs:
       - name: Set up sbt
         uses: sbt/setup-sbt@v1
 
+      - name: Run compile-time benchmarks
+        run: bash scripts/benchmark.sh benchmark-results.tsv
+
+      - name: Upload benchmark report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compile-time-benchmark-${{ github.event.release.tag_name }}
+          path: benchmark-results.tsv
+          if-no-files-found: warn
+
+      - name: Load previous benchmark baseline
+        id: benchmark-baseline
+        shell: bash
+        run: |
+          if git fetch origin benchmarks:refs/remotes/origin/benchmarks 2>/dev/null \
+            && git show origin/benchmarks:latest/results.tsv > benchmark-baseline.tsv 2>/dev/null; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "No previous benchmark baseline found; this release establishes it."
+          fi
+
+      - name: Check benchmark regression
+        if: steps.benchmark-baseline.outputs.available == 'true'
+        run: bash scripts/compare-benchmarks.sh benchmark-results.tsv benchmark-baseline.tsv
+
       - name: Import GPG key
         run: |
           echo "$PGP_SECRET" | base64 --decode | gpg --batch --import
@@ -64,3 +91,26 @@ jobs:
           publish_dir: ./target/scala-3.8.4/api
           destination_dir: latest
           commit_message: "Update latest Scaladoc for ${{ github.event.release.tag_name }}"
+
+      - name: Prepare benchmark history
+        run: |
+          mkdir -p benchmark-publish
+          cp benchmark-results.tsv benchmark-publish/results.tsv
+
+      - name: Publish versioned benchmark report
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: benchmarks
+          publish_dir: ./benchmark-publish
+          destination_dir: ${{ github.event.release.tag_name }}
+          commit_message: "Publish benchmark report for ${{ github.event.release.tag_name }}"
+
+      - name: Publish latest benchmark baseline
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: benchmarks
+          publish_dir: ./benchmark-publish
+          destination_dir: latest
+          commit_message: "Update latest benchmark baseline for ${{ github.event.release.tag_name }}"

@@ -376,7 +376,25 @@ sbt --batch doc
 The local HTML documentation is written to `target/scala-3.8.4/api`.
 
 The repository also contains isolated compile-time stress benchmarks for the
-macro. They derive tuples, products and unions with 16, 24 or 32 variants.
+macro. They derive tuples, products and unions with 16, 24 or 32 elements.
+
+The release workflow runs all nine benchmark cases three times on Scala 3.8.4
+and compares their median times with the latest successful release. A 25% and
+1-second regression threshold is used. The first release creates the baseline;
+a later release that exceeds the threshold is stopped before publishing library
+artifacts.
+Reports are retained as workflow artifacts and on the `benchmarks` branch:
+
+```text
+benchmarks/
+├── latest/results.tsv
+├── v1.0.0/results.tsv
+└── v1.1.0/results.tsv
+```
+
+The benchmark measures compilation time, including the SBT invocation and
+benchmark compilation. It is intended to detect significant regressions, not
+to provide laboratory-grade performance measurements.
 
 The default Scala version also has a coverage check with statement and branch
 thresholds:
