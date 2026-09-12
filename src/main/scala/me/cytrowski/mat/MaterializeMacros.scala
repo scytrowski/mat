@@ -544,42 +544,42 @@ private[mat] object MaterializeMacros:
     val tpe = TypeRepr.of[A]
     val owner = tpe.dealias
     val symbol = tpe.typeSymbol
+
+    def tupleTypes(tpe: TypeRepr): List[TypeRepr] =
+      tpe.asType match
+        case '[EmptyTuple]   => Nil
+        case '[head *: tail] =>
+          TypeRepr.of[head] :: tupleTypes(TypeRepr.of[tail])
+        case _ => Nil
+
+    val variants = Expr
+      .summon[Mirror.SumOf[A]]
+      .flatMap { sum =>
+        sum.asTerm.tpe.widen.asType match
+          case '[Mirror.SumOf[A] { type MirroredElemTypes = elems }] =>
+            Some(tupleTypes(TypeRepr.of[elems]))
+          case _ => None
+      }
+      .getOrElse(symbol.children.map(_.typeRef))
+
     if owner =:= TypeRepr.of[Tuple] then Some(Left(unsupportedType[A]))
     else if symbol.children.isEmpty then None
     else if symbol.children.size == 1 then
-      Some(
-        Implicits.search(TypeRepr.of[SingletonSum[A]]) match
-          case success: ImplicitSearchSuccess =>
-            success.tree.tpe.widen.asType match
-              case '[SingletonSum[A] { type Repr = repr }] =>
-                derive[repr].left.map { error =>
+      variants match
+        case repr :: Nil =>
+          repr.asType match
+            case '[reprType] =>
+              Some(
+                derive[reprType].left.map { error =>
                   MaterializeError.SingleVariant(
                     owner.show,
-                    TypeRepr.of[repr].show,
+                    TypeRepr.of[reprType].show,
                     error
                   )
                 }
-              case _ => Left(unsupportedType[A])
-          case _ => Left(unsupportedType[A])
-      )
+              )
+        case _ => Some(Left(unsupportedType[A]))
     else
-      def tupleTypes(tpe: TypeRepr): List[TypeRepr] =
-        tpe.asType match
-          case '[EmptyTuple]   => Nil
-          case '[head *: tail] =>
-            TypeRepr.of[head] :: tupleTypes(TypeRepr.of[tail])
-          case _ => Nil
-
-      val variants = Expr
-        .summon[Mirror.SumOf[A]]
-        .flatMap { sum =>
-          sum.asTerm.tpe.widen.asType match
-            case '[Mirror.SumOf[A] { type MirroredElemTypes = elems }] =>
-              Some(tupleTypes(TypeRepr.of[elems]))
-            case _ => None
-        }
-        .getOrElse(symbol.children.map(_.typeRef))
-
       val childResults = variants.filter(_ <:< owner).map { variantType =>
         variantType.asType match
           case '[variant] =>
