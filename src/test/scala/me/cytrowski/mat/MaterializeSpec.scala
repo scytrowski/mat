@@ -878,7 +878,9 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
   }
 
   it should "not materialize Nothing" in {
-    materializeOpt[Nothing] mustBe None
+    @nowarn("msg=Match type reduction failed")
+    val nothingResult: Any = materializeOpt[Nothing]
+    nothingResult mustBe None
   }
 
   it should "not materialize Any" in {
