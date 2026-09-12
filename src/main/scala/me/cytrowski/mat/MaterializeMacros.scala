@@ -120,12 +120,21 @@ private[mat] object MaterializeMacros:
           success.tree.tpe.widen.asType match
             case '[Materialize[A] { type Out = out }] =>
               val materialize = success.tree.asExprOf[Materialize[A]]
-              Some(
-                '{ Some(${ materialize }.apply().asInstanceOf[out]) }
-              )
+              if TypeRepr.of[out] =:= TypeRepr.of[Nothing] then
+                Some(
+                  '{
+                    Some(${ materialize }.apply().asInstanceOf[A]): Option[A]
+                  }
+                )
+              else
+                Some(
+                  '{ Some(${ materialize }.apply().asInstanceOf[out]) }
+                )
             case _ =>
               val materialize = success.tree.asExprOf[Materialize[A]]
-              Some('{ Some(${ materialize }.apply()) })
+              Some(
+                '{ Some(${ materialize }.apply().asInstanceOf[A]) }
+              )
         case _ => None
 
     explicitMaterialize.getOrElse {

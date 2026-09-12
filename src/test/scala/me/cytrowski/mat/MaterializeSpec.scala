@@ -559,6 +559,14 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
     value mustBe SingleElementProduct(5)
   }
 
+  it should "support materializeOpt with a Materialize context bound" in {
+    def optionallyMaterialize[A: Materialize]: Option[A] =
+      materializeOpt[A]
+
+    optionallyMaterialize[SingleElementProduct[5]] mustBe
+      Some(SingleElementProduct(5))
+  }
+
   it should "prefer explicit Materialize evidence over derivation" in {
     case class ExplicitMaterialize(value: String)
 
