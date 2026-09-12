@@ -41,7 +41,7 @@ jobs:
         with:
           name: compile-time-benchmark-${{ github.event.release.tag_name }}
           path: benchmark-results.tsv
-          if-no-files-found: warn
+          if-no-files-found: error
 
       - name: Load previous benchmark baseline
         id: benchmark-baseline
