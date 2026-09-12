@@ -370,10 +370,15 @@ release.
 To preview the documentation locally, run:
 
 ```shell
-sbt --batch doc
+sbt --batch ++3.8.4 vendorScaladocAssets
 ```
 
 The local HTML documentation is written to `target/scala-3.8.4/api`.
+The task also scans the generated HTML and CSS for external assets, downloads
+them into the generated `assets/` directory and rewrites the files to use
+local copies. This includes JavaScript, stylesheets, images, fonts and other
+resources referenced by asset-bearing HTML tags. The published documentation
+is therefore independent of external CDNs.
 
 The repository also contains isolated compile-time stress benchmarks for the
 macro. They derive tuples, products and unions with 16, 24 or 32 elements.

@@ -1,3 +1,7 @@
+lazy val vendorScaladocAssets = taskKey[File](
+  "Generate Scaladoc and vendor all external HTML/CSS assets locally"
+)
+
 ThisBuild / organization := "me.cytrowski"
 ThisBuild / version := {
   val tag = sys.env.getOrElse("GITHUB_REF", "")
@@ -56,6 +60,10 @@ lazy val root = (project in file("."))
         baseDirectory.value / "src" / "benchmark" / "scala" / benchmarkKind /
           s"Benchmark$benchmarkSize.scala"
       )
+    },
+    vendorScaladocAssets := {
+      val log = streams.value.log
+      ScaladocAssets.vendor((Compile / doc).value, log)
     },
     // https://mvnrepository.com/artifact/org.scalatest/scalatest
     libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.20" % Test

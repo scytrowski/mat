@@ -72,8 +72,8 @@ jobs:
           SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
           SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
 
-      - name: Generate Scaladoc
-        run: sbt --batch doc
+      - name: Generate Scaladoc with local assets
+        run: sbt --batch ++3.8.4 vendorScaladocAssets
 
       - name: Publish versioned Scaladoc
         uses: peaceiris/actions-gh-pages@v4
