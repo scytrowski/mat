@@ -32,9 +32,22 @@ ThisBuild / versionScheme := Some("early-semver")
 resolvers +=
   "Sonatype OSS Releases" at "https://s01.oss.sonatype.org/content/repositories/releases"
 
+lazy val Benchmark = config("benchmark") extend Compile
+
 lazy val root = (project in file("."))
+  .configs(Benchmark)
   .settings(
     name := "mat",
+    inConfig(Benchmark)(Defaults.configSettings),
+    Benchmark / unmanagedSourceDirectories := Seq.empty,
+    Benchmark / unmanagedSources := {
+      val benchmarkKind = sys.props.getOrElse("mat.benchmark", "tuple")
+      val benchmarkSize = sys.props.getOrElse("mat.size", "16")
+      Seq(
+        baseDirectory.value / "src" / "benchmark" / "scala" / benchmarkKind /
+          s"Benchmark$benchmarkSize.scala"
+      )
+    },
     // https://mvnrepository.com/artifact/org.scalatest/scalatest
     libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.20" % Test
   )

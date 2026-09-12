@@ -265,6 +265,24 @@ version with:
 sbt +test
 ```
 
+The repository also contains isolated compile-time stress benchmarks for the
+macro. They derive tuples, products and unions with 16, 24 or 32 variants.
+Run one case and one size independently from the regular tests with:
+
+```shell
+sbt --batch -Dmat.benchmark=tuple -Dmat.size=16 \
+  "Benchmark / clean" "Benchmark / compile"
+```
+
+Use `tuple`, `product` or `union` for `mat.benchmark` and `16`, `24` or `32`
+for `mat.size`. To measure another supported Scala version explicitly, prepend
+its version:
+
+```shell
+sbt --batch -Dmat.benchmark=union -Dmat.size=24 "++3.9.0" \
+  "Benchmark / clean" "Benchmark / compile"
+```
+
 ---
 
 ## 📄 License

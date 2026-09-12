@@ -236,9 +236,17 @@ private[mat] object MaterializeMacros:
     val owner = TypeRepr.of[A].dealias
 
     def variants(tpe: TypeRepr): List[TypeRepr] =
-      tpe.dealias match
-        case OrType(left, right) => variants(left) ++ variants(right)
-        case variant             => List(variant)
+      val result = List.newBuilder[TypeRepr]
+
+      def collect(current: TypeRepr): Unit =
+        current.dealias match
+          case OrType(left, right) =>
+            collect(left)
+            collect(right)
+          case variant => result += variant
+
+      collect(tpe)
+      result.result()
 
     owner match
       case OrType(_, _) =>
@@ -256,16 +264,18 @@ private[mat] object MaterializeMacros:
                 case _ => None
         }
 
-        val distinctSuccessful = successful.foldLeft(
-          List.empty[(TypeRepr, Expr[Any])]
-        ) { (results, candidate) =>
-          val (candidateType, _) = candidate
-          if results.exists { case (resultType, _) =>
-              resultType =:= candidateType
-            }
-          then results
-          else results :+ candidate
-        }
+        val distinctSuccessful = successful
+          .foldLeft(
+            scala.collection.mutable.ListBuffer.empty[(TypeRepr, Expr[Any])]
+          ) { (results, candidate) =>
+            val (candidateType, _) = candidate
+            if results.exists { case (resultType, _) =>
+                resultType =:= candidateType
+              }
+            then results
+            else results += candidate
+          }
+          .toList
 
         distinctSuccessful match
           case result :: Nil => Some(Right(result))
@@ -371,11 +381,18 @@ private[mat] object MaterializeMacros:
                 case '[headOut] =>
                   tailType.asType match
                     case '[tailOut] =>
+                      val outputType = TypeRepr.of[headOut *: Tuple] match
+                        case AppliedType(typeConstructor, _) =>
+                          AppliedType(
+                            typeConstructor,
+                            List(TypeRepr.of[headOut], tailType)
+                          )
+                        case _ => TypeRepr.of[headOut *: Tuple]
                       (
-                        TypeRepr.of[headOut *: (tailOut & Tuple)],
+                        outputType,
                         '{
                           ${ headValue }.asInstanceOf[headOut] *:
-                            ${ tailValue }.asInstanceOf[tailOut & Tuple]
+                            ${ tailValue }.asInstanceOf[Tuple]
                         }
                       )
             }
@@ -397,32 +414,37 @@ private[mat] object MaterializeMacros:
           case None =>
             Left(MaterializeError.MissingProductMirror(TypeRepr.of[A].show))
           case Some(mirror) =>
-            val fieldValues = symbol.caseFields.foldLeft[
-              Either[
-                MaterializeError,
-                List[(TypeRepr, TypeRepr, Expr[Any])]
-              ]
-            ](Right(List.empty)) {
-              case (result @ Left(_), _)  => result
-              case (Right(values), field) =>
-                TypeRepr.of[A].memberType(field).asType match
-                  case '[fieldType] =>
-                    derive[fieldType] match
-                      case Left(error) =>
-                        Left(
-                          MaterializeError.ProductField(
-                            TypeRepr.of[A].show,
-                            field.name,
-                            displayType(TypeRepr.of[fieldType]),
-                            error
+            val fieldValues = symbol.caseFields
+              .foldLeft[
+                Either[
+                  MaterializeError,
+                  List[(TypeRepr, TypeRepr, Expr[Any])]
+                ]
+              ](Right(List.empty)) {
+                case (result @ Left(_), _)  => result
+                case (Right(values), field) =>
+                  TypeRepr.of[A].memberType(field).asType match
+                    case '[fieldType] =>
+                      derive[fieldType] match
+                        case Left(error) =>
+                          Left(
+                            MaterializeError.ProductField(
+                              TypeRepr.of[A].show,
+                              field.name,
+                              displayType(TypeRepr.of[fieldType]),
+                              error
+                            )
                           )
-                        )
-                      case Right((outputType, value)) =>
-                        Right(
-                          values :+
-                            (TypeRepr.of[fieldType], outputType, value)
-                        )
-            }
+                        case Right((outputType, value)) =>
+                          Right(
+                            (
+                              TypeRepr.of[fieldType],
+                              outputType,
+                              value
+                            ) :: values
+                          )
+              }
+              .map(_.reverse)
 
             fieldValues.map { fields =>
               val owner = TypeRepr.of[A].dealias
