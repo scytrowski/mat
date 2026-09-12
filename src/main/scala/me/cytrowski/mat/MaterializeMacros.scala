@@ -110,14 +110,32 @@ private[mat] object MaterializeMacros:
         )
 
   def materializeOptImpl[A: Type](using Quotes): Expr[Any] =
+    import quotes.reflect.*
     given DerivationContext = new DerivationContext
 
-    derive[A] match
-      case Right((outType, value)) =>
-        outType.asType match
-          case '[out] =>
-            '{ Some(${ value.asExprOf[out] }) }
-      case Left(_) => '{ None }
+    val explicitMaterialize =
+      Implicits.search(TypeRepr.of[Materialize[A]]) match
+        case success: ImplicitSearchSuccess
+            if success.tree.symbol != Symbol.noSymbol =>
+          success.tree.tpe.widen.asType match
+            case '[Materialize[A] { type Out = out }] =>
+              val materialize = success.tree.asExprOf[Materialize[A]]
+              Some(
+                '{ Some(${ materialize }.apply().asInstanceOf[out]) }
+              )
+            case _ =>
+              val materialize = success.tree.asExprOf[Materialize[A]]
+              Some('{ Some(${ materialize }.apply()) })
+        case _ => None
+
+    explicitMaterialize.getOrElse {
+      derive[A] match
+        case Right((outType, value)) =>
+          outType.asType match
+            case '[out] =>
+              '{ Some(${ value.asExprOf[out] }) }
+        case Left(_) => '{ None }
+    }
 
   private def derive[A: Type](using
       quotes: Quotes,

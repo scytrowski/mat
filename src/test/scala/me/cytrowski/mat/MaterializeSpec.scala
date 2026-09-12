@@ -570,6 +570,25 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
     materialize[ExplicitMaterialize] mustBe ExplicitMaterialize("explicit")
   }
 
+  it should "use explicit Materialize evidence in materializeOpt" in {
+    case class ExplicitMaterializeOpt(value: String)
+
+    given Materialize[ExplicitMaterializeOpt] =
+      Materialize.fromValue(ExplicitMaterializeOpt("explicit"))
+    given Materialize.Aux[IntersectionBase, IntersectionLeaf.type] =
+      Materialize.fromValue[IntersectionBase, IntersectionLeaf.type](
+        IntersectionLeaf
+      )
+
+    val value: Some[ExplicitMaterializeOpt] =
+      materializeOpt[ExplicitMaterializeOpt]
+    val precise: Some[IntersectionLeaf.type] =
+      materializeOpt[IntersectionBase]
+
+    value mustBe Some(ExplicitMaterializeOpt("explicit"))
+    precise mustBe Some(IntersectionLeaf)
+  }
+
   it should "prefer explicit Materialize evidence over union derivation" in {
     given Materialize.Aux[5 | String, String] =
       Materialize.fromValue[5 | String, String]("explicit")
