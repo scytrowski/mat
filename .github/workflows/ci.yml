@@ -19,6 +19,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: corretto
+          # renovate: datasource=java-version depName=java-jdk
           java-version: 25
 
       - name: Set up sbt

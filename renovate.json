@@ -1,0 +1,57 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "dependencyDashboard": true,
+  "schedule": ["every weekend"],
+  "timezone": "Europe/Warsaw",
+  "prConcurrentLimit": 5,
+  "labels": ["dependencies"],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "managerFilePatterns": ["/^\\.github\\/workflows\\/.*\\.yml$/"],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)\\s+java-version:\\s*(?<currentValue>\\d+)"
+      ],
+      "versioningTemplate": "loose"
+    },
+    {
+      "customType": "regex",
+      "managerFilePatterns": ["/^build\\.sbt$/"],
+      "matchStrings": [
+        "\\\"(?<currentValue>3\\.\\d+\\.\\d+)\\\"\\s*// renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)"
+      ],
+      "versioningTemplate": "semver"
+    }
+  ],
+  "packageRules": [
+    {
+      "matchDatasources": ["java-version"],
+      "matchPackageNames": ["java-jdk"],
+      "extends": ["workarounds:javaLTSVersions"],
+      "groupName": "Java runtime"
+    },
+    {
+      "matchManagers": ["custom.regex"],
+      "matchPackageNames": ["scala/scala3"],
+      "matchCurrentVersion": "/^3\\.8\\./",
+      "allowedVersions": "3.8.x",
+      "groupName": "Scala 3.8.x toolchain"
+    },
+    {
+      "matchManagers": ["custom.regex"],
+      "matchPackageNames": ["scala/scala3"],
+      "matchCurrentVersion": "/^3\\.9\\./",
+      "allowedVersions": "3.9.x",
+      "groupName": "Scala 3.9.x toolchain"
+    },
+    {
+      "matchManagers": ["sbt"],
+      "groupName": "sbt dependencies"
+    },
+    {
+      "matchManagers": ["github-actions"],
+      "groupName": "GitHub Actions"
+    }
+  ]
+}
