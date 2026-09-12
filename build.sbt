@@ -10,6 +10,9 @@ ThisBuild / crossScalaVersions := Seq("3.8.4", "3.9.0")
 // versions for validation, but publish one artifact to avoid duplicate
 // coordinates in the release repository.
 ThisBuild / publish / skip := scalaVersion.value != crossScalaVersions.value.head
+ThisBuild / coverageMinimumStmtTotal := 90.0
+ThisBuild / coverageMinimumBranchTotal := 85.0
+ThisBuild / coverageFailOnMinimum := true
 ThisBuild / description := "Scala 3 library for type-level materialization of constant values, tuples, products and singleton sums"
 ThisBuild / licenses := Seq(
   "MIT" -> url("https://github.com/scytrowski/mat/blob/master/LICENSE")

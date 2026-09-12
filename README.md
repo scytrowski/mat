@@ -275,6 +275,15 @@ sbt +test
 
 The repository also contains isolated compile-time stress benchmarks for the
 macro. They derive tuples, products and unions with 16, 24 or 32 variants.
+
+The default Scala version also has a coverage check with statement and branch
+thresholds:
+
+```shell
+sbt --batch coverage test coverageReport
+```
+
+The HTML report is generated under `target/scala-3.8.4/coverage-report`.
 Run one case and one size independently from the regular tests with:
 
 ```shell
