@@ -113,8 +113,11 @@ private[mat] object MaterializeMacros:
     given DerivationContext = new DerivationContext
 
     derive[A] match
-      case Right((_, value)) => '{ Some($value) }
-      case Left(_)           => '{ None }
+      case Right((outType, value)) =>
+        outType.asType match
+          case '[out] =>
+            '{ Some(${ value.asExprOf[out] }) }
+      case Left(_) => '{ None }
 
   private def derive[A: Type](using
       quotes: Quotes,
@@ -388,13 +391,16 @@ private[mat] object MaterializeMacros:
                             List(TypeRepr.of[headOut], tailType)
                           )
                         case _ => TypeRepr.of[headOut *: Tuple]
-                      (
-                        outputType,
-                        '{
-                          ${ headValue }.asInstanceOf[headOut] *:
-                            ${ tailValue }.asInstanceOf[Tuple]
-                        }
-                      )
+                      outputType.asType match
+                        case '[output] =>
+                          (
+                            TypeRepr.of[output],
+                            '{
+                              ((${ headValue }.asInstanceOf[headOut]) *:
+                                ${ tailValue }.asInstanceOf[Tuple])
+                                .asInstanceOf[output]
+                            }.asExprOf[output]
+                          )
             }
       case _ => Left(unsupportedType(tpe))
 

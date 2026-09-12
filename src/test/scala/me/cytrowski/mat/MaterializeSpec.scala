@@ -364,9 +364,12 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
   }
 
   it should "filter GADT variants by the requested result type" in {
+    val intExpr: TypedInt.type = materialize[TypedExpr[Int]]
+
     materializeOpt[TypedExpr[Int]] mustBe Some(TypedInt)
     materializeOpt[TypedExpr[Boolean]] mustBe Some(TypedBoolean)
     materializeOpt[TypedExpr[String]] mustBe None
+    intExpr mustBe TypedInt
   }
 
   it should "instantiate compatible generic product variants" in {
@@ -533,6 +536,19 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
     val result: Option[String] = materializeOpt[String]
 
     result mustBe empty
+  }
+
+  it should "expose materializeOpt as Option[A]" in {
+    val constant: Some[1337] = materializeOpt[1337]
+    val product: Some[SingleElementProduct[5]] =
+      materializeOpt[SingleElementProduct[5]]
+    val union: None.type = materializeOpt[5 | "abc"]
+    val gadt: Some[TypedInt.type] = materializeOpt[TypedExpr[Int]]
+
+    constant mustBe Some(1337)
+    product mustBe Some(SingleElementProduct(5))
+    union mustBe None
+    gadt mustBe Some(TypedInt)
   }
 
   it should "expose None for nested unsupported types" in {
