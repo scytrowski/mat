@@ -8,7 +8,40 @@
 
 **`mat`** is a lightweight Scala 3 library for materializing types into values at compile time.
 
-It provides a macro-based approach for turning types like tuples, literal types, or case classes into values using `inline` and `Mirror`.
+It provides a type-directed, macro-based way to turn types such as literal
+types, tuples, case classes and closed ADTs into values using `inline` and
+`Mirror`.
+
+This is useful when a domain is described in the type system and each type has
+one meaningful value that can be constructed from that description. Examples
+include typed configuration fragments, protocol values, small schema objects
+and compile-time test data.
+
+`mat` does not inspect arbitrary runtime classes, deserialize runtime input or
+choose a value based on a runtime condition. The requested type must contain
+enough compile-time information for the macro to derive one unambiguous value.
+
+## ⚠️ Compile-time and macro trade-offs
+
+Materialization is performed by a Scala 3 quoted macro at the call site:
+
+- `materialize[A]` reports a compilation error when derivation fails.
+- `materializeOpt[A]` turns a failed derivation into `None`, but the type is
+  still analyzed during compilation.
+- `materializeOpt[A]` avoids the library's derivation error, but unusual types
+  can still produce compiler warnings during type reduction.
+- The generated code uses ordinary Scala expressions and does not use runtime
+  reflection. The resulting constructors or mirror operations still execute
+  normally when the compiled program runs.
+- Deeply nested products, tuples and sums can increase compilation time and
+  generate larger code. This cost is paid during compilation, not as a runtime
+  search for a value.
+- Macro behavior depends on the Scala compiler. This project currently tests
+  Scala 3.8.x and 3.9.x; compiler diagnostics and edge-case behavior should be
+  verified when upgrading Scala.
+- Generic methods need a concrete `A` at the call site or an available
+  `Materialize[A]` context bound. Materialization is not a replacement for
+  constructing values that depend on runtime data.
 
 The library currently supports Scala 3.8.x and 3.9.x. Both versions are tested
 and packaged in CI. Since these Scala versions share the `_3` binary artifact
@@ -41,6 +74,21 @@ libraryDependencies += "me.cytrowski" %% "mat" % "<version>"
 
 The `%%` operator selects the Scala 3 binary artifact for both Scala 3.8.x and
 3.9.x projects.
+
+---
+
+## 🧭 API at a glance
+
+| API | Use it for | Behavior when it fails |
+| --- | --- | --- |
+| `materialize[A]` | Return the materialized value with its most precise available type | Compilation error with a diagnostic |
+| `materializeOpt[A]` | Try materialization without failing compilation | Returns `None` without a derivation error |
+| `Materialize[A]` | Reuse evidence and expose the precise `Out` type | Evidence cannot be derived |
+| `CustomMaterialize[A]` | Supply an application-specific value and type | Built-in derivation is used when no custom instance exists |
+
+Both inline methods are transparent. Their public signature is `Any` so the
+macro can preserve a more precise type at each call site; normal usage should
+assign the result to the expected type or let Scala infer it.
 
 ---
 
@@ -164,7 +212,7 @@ val tree: Option[Tree] = materializeOpt[Tree]
 
 ### Provide custom materialization logic
 
-`materialize[A]` first uses an explicit `Materialize[A]` in scope. If no such
+Resolution always checks an explicit `Materialize[A]` first. If no such
 evidence is available, `CustomMaterialize[A]` takes precedence over the
 built-in materialization rules used by the macro.
 
@@ -204,6 +252,10 @@ given Materialize[Configuration] =
 
 val configuration: Configuration = materialize[Configuration]
 ```
+
+`fromValue` accepts its argument by name, so the expression is evaluated each
+time the returned evidence is applied. This is useful for explicit evidence,
+but it does not make the value a compile-time constant.
 
 An explicit `Materialize[A]` in scope is used before the macro tries to derive
 a new instance.
@@ -249,21 +301,42 @@ Use `materializeOpt[A]` when failure is expected and should be represented as
 
 ### Supported forms
 
-The built-in derivation supports:
+The built-in derivation supports the following forms:
 
-- literal types with a `ValueOf` instance,
-- intersections when one component produces a value satisfying the full intersection,
-- unions with exactly one materializable variant,
-- tuples and named tuples whose elements are supported,
-- case-class products whose fields are supported,
-- sums with exactly one materializable candidate, including nested and
-  parameterized ADTs,
+- literal types with a `ValueOf` instance, including `5`, `"hello"`, `true`
+  and `'d`, as well as the unit value `()`;
+- intersections when one component produces a value that satisfies the full
+  intersection, such as `5 & Int`;
+- unions when exactly one distinct branch can be materialized;
+- tuples and named tuples whose elements can all be materialized;
+- case-class products whose fields can all be materialized;
+- enums and sealed-trait sums with exactly one materializable candidate,
+  including nested and parameterized ADTs;
 - custom values supplied through `CustomMaterialize[A]`.
 
-Types without a supported representation, such as abstract types, sums with
-multiple materializable candidates, sums with a concrete rejected variant,
-recursive branches, or ambiguous unions, are rejected by `materialize[A]` and
-return `None` from `materializeOpt[A]`.
+The rules are intentionally conservative:
+
+- An intersection is accepted only when the resulting value satisfies every
+  component. A value that satisfies only one side is not enough.
+- Repeated union branches are deduplicated, so `5 | 5` is equivalent to `5`.
+  If multiple distinct branches succeed, the union is ambiguous and rejected.
+  Unsupported branches do not block a union when exactly one distinct branch
+  succeeds.
+- For a sum, multiple successful candidates are ambiguous. A concrete
+  rejected variant, or a nested branch with known children that fails, also
+  rejects the whole sum instead of being silently ignored. Empty sealed
+  branches can be ignored while searching for a candidate.
+- Parameterized sums are filtered by compatibility with the requested type.
+  This enables GADT-like definitions such as `Expr[Int]`, but the result must
+  still have exactly one candidate.
+
+Types without a supported representation are rejected by `materialize[A]` and
+return `None` from `materializeOpt[A]`. This includes abstract types, `Any`,
+`Nothing`, refined types, opaque types outside their defining scope, recursive
+products or sums, ambiguous sums and ambiguous unions. For example,
+`Option[5]` has both `Some[5]` and `None` as candidates, while
+`Option[Nothing]` contains an unsupported `Some[Nothing]` branch; both cases
+are rejected.
 
 ### Cross-building and tests
 
