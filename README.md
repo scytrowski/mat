@@ -97,6 +97,10 @@ val x: SomeClass[15] = materialize[SomeClass[15]]
 `materializeOpt[A]` uses the same derivation rules as `materialize[A]`, but returns
 `None` when `A` cannot be materialized.
 
+Its public return type is intentionally `Any` so that the transparent inline
+macro can preserve the most precise result type at the call site, such as
+`Some[42]` or `None.type`.
+
 ```scala
 import me.cytrowski.mat.*
 

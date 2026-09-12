@@ -150,11 +150,21 @@ private[mat] object MaterializeMacros:
   ): Option[
     Either[MaterializeError, (quotes.reflect.TypeRepr, Expr[Any])]
   ] =
-    Expr
-      .summon[CustomMaterialize[A]]
-      .map(custom =>
-        Right((quotes.reflect.TypeRepr.of[A], '{ $custom.apply() }))
-      )
+    val customMaterialize =
+      quotes.reflect.Implicits.search(
+        quotes.reflect.TypeRepr.of[CustomMaterialize[A]]
+      ) match
+        case success: quotes.reflect.ImplicitSearchSuccess =>
+          success.tree.tpe.widen.asType match
+            case '[CustomMaterialize[A] { type Out = out }] =>
+              val custom = success.tree.asExprOf[CustomMaterialize[A]]
+              Some(
+                Right((quotes.reflect.TypeRepr.of[out], '{ $custom.apply() }))
+              )
+            case _ => None
+        case _ => None
+
+    customMaterialize
       .orElse(deriveValueOf[A])
       .orElse(deriveIntersection[A])
       .orElse(deriveUnion[A])
@@ -257,22 +267,27 @@ private[mat] object MaterializeMacros:
           variant.asType match
             case '[variantType] =>
               derive[variantType] match
-                case Right((_, value)) =>
-                  Some(
-                    (
-                      TypeRepr.of[variantType],
-                      '{ ${ value }.asInstanceOf[variantType] }
-                    )
-                  )
+                case Right((outType, value)) =>
+                  outType.asType match
+                    case '[out] =>
+                      Some(
+                        (
+                          TypeRepr.of[variantType],
+                          outType,
+                          '{ ${ value }.asInstanceOf[out] }
+                        )
+                      )
                 case _ => None
         }
 
         val distinctSuccessful = successful
           .foldLeft(
-            scala.collection.mutable.ListBuffer.empty[(TypeRepr, Expr[Any])]
+            scala.collection.mutable.ListBuffer.empty[
+              (TypeRepr, TypeRepr, Expr[Any])
+            ]
           ) { (results, candidate) =>
-            val (candidateType, _) = candidate
-            if results.exists { case (resultType, _) =>
+            val (candidateType, _, _) = candidate
+            if results.exists { case (resultType, _, _) =>
                 resultType =:= candidateType
               }
             then results
@@ -281,7 +296,7 @@ private[mat] object MaterializeMacros:
           .toList
 
         distinctSuccessful match
-          case result :: Nil => Some(Right(result))
+          case (_, outType, value) :: Nil => Some(Right((outType, value)))
           case Nil => Some(Left(MaterializeError.UnsupportedUnion(owner.show)))
           case results =>
             Some(

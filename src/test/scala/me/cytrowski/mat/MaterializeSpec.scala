@@ -77,6 +77,20 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
     materializeOpt[5 & 5 & 5].value mustBe 5
   }
 
+  it should "preserve a narrowed output type through an intersection" in {
+    given CustomMaterialize[IntersectionBase] with
+      type Out = IntersectionLeaf.type
+      def apply(): IntersectionLeaf.type = IntersectionLeaf
+
+    val value: IntersectionLeaf.type =
+      materialize[IntersectionBase & IntersectionMarker]
+    val optional: Some[IntersectionLeaf.type] =
+      materializeOpt[IntersectionBase & IntersectionMarker]
+
+    value mustBe IntersectionLeaf
+    optional mustBe Some(IntersectionLeaf)
+  }
+
   it should "materialize an intersection containing a tuple" in {
     val left: (5, "abc", 'd') =
       materialize[(5, "abc", 'd') & Tuple]
@@ -139,6 +153,20 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
 
     left mustBe (5, "abc", 'd')
     right mustBe (5, "abc", 'd')
+  }
+
+  it should "preserve a narrowed output type from a union variant" in {
+    given CustomMaterialize[Int] with
+      type Out = 5
+      def apply(): 5 = 5
+
+    val value: SingleElementProduct[5] =
+      materialize[SingleElementProduct[Int] | String]
+    val optional: Some[SingleElementProduct[5]] =
+      materializeOpt[SingleElementProduct[Int] | String]
+
+    value mustBe SingleElementProduct(5)
+    optional mustBe Some(SingleElementProduct(5))
   }
 
   it should "deduplicate repeated union variants" in {
@@ -262,6 +290,20 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
     ))
   }
 
+  it should "preserve narrowed output types in named tuples" in {
+    given CustomMaterialize[Int] with
+      type Out = 5
+      def apply(): 5 = 5
+
+    val value: (a: 5, b: "ok") =
+      materialize[(a: Int, b: "ok")]
+    val optional: Some[(a: 5, b: "ok")] =
+      materializeOpt[(a: Int, b: "ok")]
+
+    value mustBe ((a = 5, b = "ok"))
+    optional mustBe Some((a = 5, b = "ok"))
+  }
+
   it should "not materialize named tuple with non materializable element" in {
     materializeOpt[(a: 3, b: "aaa", c: Int)] mustBe empty
   }
@@ -274,6 +316,20 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
 
   it should "materialize product with single element" in {
     materializeOpt[SingleElementProduct[5]].value mustBe SingleElementProduct(5)
+  }
+
+  it should "allow assigning a narrowed invariant product" in {
+    given CustomMaterialize[Int] with
+      type Out = 5
+      def apply(): 5 = 5
+
+    val value: SingleElementProduct[5] =
+      materialize[SingleElementProduct[Int]]
+    val optional: Some[SingleElementProduct[5]] =
+      materializeOpt[SingleElementProduct[Int]]
+
+    value mustBe SingleElementProduct(5)
+    optional mustBe Some(SingleElementProduct(5))
   }
 
   it should "materialize product with multiple elements" in {
@@ -297,6 +353,31 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
       "abc",
       MultipleElementsProduct(true, 98.32, 'p'),
       19
+    )
+  }
+
+  it should "preserve narrowed output types in nested products" in {
+    given CustomMaterialize[Int] with
+      type Out = 5
+      def apply(): 5 = 5
+
+    type Expected = MultipleElementsProduct[
+      SingleElementProduct[Int] & SingleElementProduct[5],
+      5,
+      "ok"
+    ]
+
+    val value: Expected =
+      materialize[
+        MultipleElementsProduct[SingleElementProduct[Int], Int, "ok"]
+      ]
+    val optional: Some[Expected] = materializeOpt[
+      MultipleElementsProduct[SingleElementProduct[Int], Int, "ok"]
+    ]
+
+    value mustBe MultipleElementsProduct(SingleElementProduct(5), 5, "ok")
+    optional mustBe Some(
+      MultipleElementsProduct(SingleElementProduct(5), 5, "ok")
     )
   }
 
@@ -538,7 +619,7 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
     result mustBe empty
   }
 
-  it should "expose materializeOpt as Option[A]" in {
+  it should "preserve precise materializeOpt result types" in {
     val constant: Some[1337] = materializeOpt[1337]
     val product: Some[SingleElementProduct[5]] =
       materializeOpt[SingleElementProduct[5]]
@@ -782,6 +863,12 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
   private case object EmptyProduct
   private case class SingleElementProduct[A](a: A)
   private case class MultipleElementsProduct[A, B, C](a: A, b: B, c: C)
+
+  private sealed trait IntersectionBase
+  private trait IntersectionMarker
+  private case object IntersectionLeaf
+      extends IntersectionBase
+      with IntersectionMarker
 
   private sealed trait SingletonSum
   private case object SingletonSumVariant extends SingletonSum
