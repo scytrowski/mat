@@ -4,7 +4,7 @@ ThisBuild / version := {
   val v = "refs/tags/v"
   if (tag.startsWith(v)) tag.stripPrefix(v) else "SNAPSHOT"
 }
-ThisBuild / scalaVersion := "3.8.4" // renovate: datasource=github-releases depName=scala/scala3
+ThisBuild / scalaVersion := "3.9.0" // renovate: datasource=github-releases depName=scala/scala3
 ThisBuild / crossScalaVersions := Seq(
   "3.8.4", // renovate: datasource=github-releases depName=scala/scala3
   "3.9.0" // renovate: datasource=github-releases depName=scala/scala3
