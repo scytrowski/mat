@@ -11,8 +11,12 @@ package me.cytrowski.mat
   * outside the standard cases (e.g. constant types, tuples, products, singleton
   * sums).
   *
-  * When a `CustomMaterialize[A]` instance is in scope, it takes precedence over
-  * the built-in macro rules and can override their behavior.
+  * An explicit `Materialize[A]` instance is checked first. When one is not
+  * available, a `CustomMaterialize[A]` instance takes precedence over the
+  * built-in macro rules and can override their behavior.
+  *
+  * @tparam A
+  *   the type to materialize
   */
 trait CustomMaterialize[A]:
   /** The resulting type of the materialized value. */
@@ -22,4 +26,5 @@ trait CustomMaterialize[A]:
   def apply(): Out
 
 object CustomMaterialize:
+  /** Type alias that fixes the precise output type of custom evidence. */
   type Aux[A, O <: A] = CustomMaterialize[A] { type Out = O }

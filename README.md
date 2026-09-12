@@ -10,11 +10,10 @@
 
 It provides a macro-based approach for turning types like tuples, literal types, or case classes into values using `inline` and `Mirror`.
 
-The library currently cross-builds for Scala 3.8.x and 3.9.x.
-Both versions are tested and packaged in CI. Since Scala 3.8.x and 3.9.x
-share the `_3` binary artifact suffix, releases publish one artifact built
-with the oldest supported compiler, Scala 3.8.4, which is resolved by both
-Scala versions.
+The library currently supports Scala 3.8.x and 3.9.x. Both versions are tested
+and packaged in CI. Since these Scala versions share the `_3` binary artifact
+suffix, a release publishes one artifact built with the oldest supported
+compiler, Scala 3.8.4; both Scala versions resolve that artifact.
 
 ---
 
@@ -24,7 +23,8 @@ Scala versions.
 - Recursively materialize tuples: `(1, "abc", true)`
 - Recursively materialize named tuples: `(a = 1, b = "abc", c = true)`
 - Materialize case classes via `Mirror.ProductOf`
-- Materialize sealed trait based ADTs with exactly one materializable variant
+- Materialize nested and parameterized sealed-trait ADTs with exactly one
+  materializable variant
 - Materialize named tuples while preserving their labels
 - Materialize supported intersection types such as `5 & Int`
 - Override built-in rules with `CustomMaterialize[A]`
@@ -164,7 +164,9 @@ val tree: Option[Tree] = materializeOpt[Tree]
 
 ### Provide custom materialization logic
 
-`CustomMaterialize[A]` takes precedence over the built-in materialization rules used by the macro.
+`materialize[A]` first uses an explicit `Materialize[A]` in scope. If no such
+evidence is available, `CustomMaterialize[A]` takes precedence over the
+built-in materialization rules used by the macro.
 
 ```scala
 import me.cytrowski.mat.*
@@ -184,7 +186,8 @@ val x: SomeClass = materialize[SomeClass]
 
 `CustomMaterialize[A]` has priority over all built-in derivation rules. This is
 useful when a type has a built-in representation but the application needs a
-different value.
+different value. An explicit `Materialize[A]` still has higher priority than
+`CustomMaterialize[A]`.
 
 ### Provide `Materialize[A]` explicitly
 
@@ -257,10 +260,10 @@ The built-in derivation supports:
   parameterized ADTs,
 - custom values supplied through `CustomMaterialize[A]`.
 
-Types outside these forms, such as ordinary abstract types, sums with multiple
-materializable candidates, sums with a concrete rejected variant, recursive
-branches, or ambiguous unions, are rejected by `materialize[A]` and return
-`None` from `materializeOpt[A]`.
+Types without a supported representation, such as abstract types, sums with
+multiple materializable candidates, sums with a concrete rejected variant,
+recursive branches, or ambiguous unions, are rejected by `materialize[A]` and
+return `None` from `materializeOpt[A]`.
 
 ### Cross-building and tests
 
@@ -270,8 +273,34 @@ above. During development, the complete test suite can be run for every
 configured Scala version with:
 
 ```shell
-sbt +test
+sbt --batch +test
 ```
+
+Scaladoc is generated only by the release workflow, after the library has been
+published. The workflow uses Scala 3.8.4, which is the compiler used for the
+published artifact, and adds the generated HTML documentation to a directory
+named after the release tag in the `scaladoc` branch:
+
+```text
+scaladoc/
+├── latest/
+├── v1.0.0/
+├── v1.1.0/
+└── v1.2.0/
+```
+
+Existing version directories are preserved, so downstream websites or other
+documentation tooling can fetch documentation for a specific release. The
+`latest/` directory is updated at the same time and always points to the newest
+release.
+
+To preview the documentation locally, run:
+
+```shell
+sbt --batch doc
+```
+
+The local HTML documentation is written to `target/scala-3.8.4/api`.
 
 The repository also contains isolated compile-time stress benchmarks for the
 macro. They derive tuples, products and unions with 16, 24 or 32 variants.

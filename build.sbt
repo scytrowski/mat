@@ -13,7 +13,7 @@ ThisBuild / publish / skip := scalaVersion.value != crossScalaVersions.value.hea
 ThisBuild / coverageMinimumStmtTotal := 90.0
 ThisBuild / coverageMinimumBranchTotal := 85.0
 ThisBuild / coverageFailOnMinimum := true
-ThisBuild / description := "Scala 3 library for type-level materialization of constant values, tuples, products and singleton sums"
+ThisBuild / description := "Scala 3 library for compile-time materialization of literal values, tuples, products, unions, intersections and singleton-sum ADTs"
 ThisBuild / licenses := Seq(
   "MIT" -> url("https://github.com/scytrowski/mat/blob/master/LICENSE")
 )

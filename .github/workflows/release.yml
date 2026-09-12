@@ -5,6 +5,9 @@ on:
     types:
       - published
 
+permissions:
+  contents: write
+
 jobs:
   release:
     name: Release package
@@ -15,6 +18,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name }}
 
       - name: Set up JDK
         uses: actions/setup-java@v4
@@ -38,3 +43,24 @@ jobs:
           PGP_SECRET: ${{ secrets.PGP_SECRET }}
           SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
           SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
+
+      - name: Generate Scaladoc
+        run: sbt --batch doc
+
+      - name: Publish versioned Scaladoc
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: scaladoc
+          publish_dir: ./target/scala-3.8.4/api
+          destination_dir: ${{ github.event.release.tag_name }}
+          commit_message: "Publish Scaladoc for ${{ github.event.release.tag_name }}"
+
+      - name: Publish latest Scaladoc
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: scaladoc
+          publish_dir: ./target/scala-3.8.4/api
+          destination_dir: latest
+          commit_message: "Update latest Scaladoc for ${{ github.event.release.tag_name }}"
