@@ -20,6 +20,7 @@ jobs:
         uses: actions/checkout@v7
         with:
           ref: ${{ github.event.release.tag_name }}
+          persist-credentials: true
 
       - name: Set up JDK
         uses: actions/setup-java@v6
@@ -75,43 +76,83 @@ jobs:
       - name: Generate Scaladoc with local assets
         run: sbt --batch ++3.8.4 vendorScaladocAssets
 
-      - name: Publish versioned Scaladoc
-        uses: peaceiris/actions-gh-pages@v4
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_branch: scaladoc
-          publish_dir: ./target/scala-3.8.4/api
-          destination_dir: ${{ github.event.release.tag_name }}
-          commit_message: "Publish Scaladoc for ${{ github.event.release.tag_name }}"
+      - name: Update Scaladoc artifact branch
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
 
-      - name: Publish latest Scaladoc
-        uses: peaceiris/actions-gh-pages@v4
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_branch: scaladoc
-          publish_dir: ./target/scala-3.8.4/api
-          destination_dir: latest
-          commit_message: "Update latest Scaladoc for ${{ github.event.release.tag_name }}"
+          if git fetch origin scaladoc:refs/remotes/origin/scaladoc; then
+            has_scaladoc_branch=true
+          else
+            has_scaladoc_branch=false
+          fi
+
+          publish_dir=$(mktemp -d)
+          cleanup() {
+            git worktree remove --force "$publish_dir"
+          }
+          trap cleanup EXIT
+
+          if [[ "$has_scaladoc_branch" == true ]]; then
+            git worktree add --detach "$publish_dir" refs/remotes/origin/scaladoc
+            git -C "$publish_dir" switch -C scaladoc refs/remotes/origin/scaladoc
+          else
+            git worktree add --detach "$publish_dir" HEAD
+            git -C "$publish_dir" switch --orphan scaladoc
+            git -C "$publish_dir" clean -fdx
+          fi
+
+          rm -rf "$publish_dir/$RELEASE_TAG" "$publish_dir/latest"
+          mkdir -p "$publish_dir/$RELEASE_TAG" "$publish_dir/latest"
+          cp -a target/scala-3.8.4/api/. "$publish_dir/$RELEASE_TAG/"
+          cp -a target/scala-3.8.4/api/. "$publish_dir/latest/"
+
+          git -C "$publish_dir" config user.name "github-actions[bot]"
+          git -C "$publish_dir" config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git -C "$publish_dir" add --all
+          git -C "$publish_dir" commit -m "Publish Scaladoc for $RELEASE_TAG"
+          git -C "$publish_dir" push origin HEAD:scaladoc
 
       - name: Prepare benchmark history
         run: |
           mkdir -p benchmark-publish
           cp benchmark-results.tsv benchmark-publish/results.tsv
 
-      - name: Publish versioned benchmark report
-        uses: peaceiris/actions-gh-pages@v4
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_branch: benchmarks
-          publish_dir: ./benchmark-publish
-          destination_dir: ${{ github.event.release.tag_name }}
-          commit_message: "Publish benchmark report for ${{ github.event.release.tag_name }}"
+      - name: Update benchmark artifact branch
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
 
-      - name: Publish latest benchmark baseline
-        uses: peaceiris/actions-gh-pages@v4
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_branch: benchmarks
-          publish_dir: ./benchmark-publish
-          destination_dir: latest
-          commit_message: "Update latest benchmark baseline for ${{ github.event.release.tag_name }}"
+          if git fetch origin benchmarks:refs/remotes/origin/benchmarks; then
+            has_benchmarks_branch=true
+          else
+            has_benchmarks_branch=false
+          fi
+
+          publish_dir=$(mktemp -d)
+          cleanup() {
+            git worktree remove --force "$publish_dir"
+          }
+          trap cleanup EXIT
+
+          if [[ "$has_benchmarks_branch" == true ]]; then
+            git worktree add --detach "$publish_dir" refs/remotes/origin/benchmarks
+            git -C "$publish_dir" switch -C benchmarks refs/remotes/origin/benchmarks
+          else
+            git worktree add --detach "$publish_dir" HEAD
+            git -C "$publish_dir" switch --orphan benchmarks
+            git -C "$publish_dir" clean -fdx
+          fi
+
+          rm -rf "$publish_dir/$RELEASE_TAG" "$publish_dir/latest"
+          mkdir -p "$publish_dir/$RELEASE_TAG" "$publish_dir/latest"
+          cp -a benchmark-publish/. "$publish_dir/$RELEASE_TAG/"
+          cp -a benchmark-publish/. "$publish_dir/latest/"
+
+          git -C "$publish_dir" config user.name "github-actions[bot]"
+          git -C "$publish_dir" config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git -C "$publish_dir" add --all
+          git -C "$publish_dir" commit -m "Publish benchmark report for $RELEASE_TAG"
+          git -C "$publish_dir" push origin HEAD:benchmarks

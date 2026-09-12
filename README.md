@@ -365,7 +365,9 @@ scaladoc/
 Existing version directories are preserved, so downstream websites or other
 documentation tooling can fetch documentation for a specific release. The
 `latest/` directory is updated at the same time and always points to the newest
-release.
+release. The `scaladoc` branch is an artifact store only; the release workflow
+does not deploy GitHub Pages. A separate documentation project can consume the
+branch and deploy it to the target hosting provider.
 
 To preview the documentation locally, run:
 
