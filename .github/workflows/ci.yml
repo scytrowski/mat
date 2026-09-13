@@ -41,13 +41,13 @@ jobs:
         run: sbt --batch +test
 
       - name: Coverage
-        run: sbt --batch ++3.8.4 coverage test coverageReport
+        run: sbt --batch ';++3.8.4;coverage;test;coverageReport'
 
       - name: Upload coverage report
         uses: actions/upload-artifact@v7
         with:
           name: coverage-report
-          path: target/scala-3.8.4/coverage-report
+          path: target/out/jvm/scala-3.8.4/mat/coverage-report
           if-no-files-found: error
 
       - name: Package

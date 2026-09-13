@@ -61,7 +61,7 @@ lazy val root = (project in file("."))
           s"Benchmark$benchmarkSize.scala"
       )
     },
-    vendorScaladocAssets := {
+    vendorScaladocAssets := Def.uncached {
       val log = streams.value.log
       ScaladocAssets.vendor((Compile / doc).value, log)
     },

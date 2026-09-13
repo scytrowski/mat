@@ -39,7 +39,7 @@ object ScaladocAssets {
   private val CssUrl = """(?i)url\(\s*["']?((?:https?:)?//[^)"']+)["']?\s*\)""".r
 
   def vendor(scaladocDir: File, log: Logger): File = {
-    val files = ((scaladocDir ** "*.html").get ++ (scaladocDir ** "*.css").get).distinct
+    val files = ((scaladocDir ** "*.html").get() ++ (scaladocDir ** "*.css").get()).distinct
     val fileUrls = files.map(file => file -> findAssetUrls(file)).toMap
     val urls = fileUrls.values.flatten.toSet.toSeq.sorted
     val assetsDir = scaladocDir / "assets"
