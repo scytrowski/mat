@@ -5,8 +5,7 @@ package me.cytrowski.mat
   * Resolution uses the following order:
   *
   *   1. an explicit `Materialize[A]` instance in scope,
-  *   2. a `CustomMaterialize[A]` instance in scope,
-  *   3. the built-in derivation rules.
+  *   2. the built-in derivation rules.
   *
   * If no rule succeeds, compilation fails with a diagnostic. The method is
   * transparent and inline, so the expression keeps the most precise result type

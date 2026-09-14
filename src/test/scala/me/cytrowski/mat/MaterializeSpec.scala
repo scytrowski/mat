@@ -71,9 +71,10 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
   }
 
   it should "preserve a narrowed output type through an intersection" in {
-    given CustomMaterialize[IntersectionBase] with
-      type Out = IntersectionLeaf.type
-      def apply(): IntersectionLeaf.type = IntersectionLeaf
+    given Materialize.Aux[IntersectionBase, IntersectionLeaf.type] =
+      Materialize.fromValue[IntersectionBase, IntersectionLeaf.type](
+        IntersectionLeaf
+      )
 
     val value: IntersectionLeaf.type =
       materialize[IntersectionBase & IntersectionMarker]
@@ -84,10 +85,11 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
     optional mustBe Some(IntersectionLeaf)
   }
 
-  it should "reject a custom value that does not satisfy the full intersection" in {
-    given CustomMaterialize[IntersectionBase] with
-      type Out = IntersectionBaseOnly.type
-      def apply(): IntersectionBaseOnly.type = IntersectionBaseOnly
+  it should "reject an explicit value that does not satisfy the full intersection" in {
+    given Materialize.Aux[IntersectionBase, IntersectionBaseOnly.type] =
+      Materialize.fromValue[IntersectionBase, IntersectionBaseOnly.type](
+        IntersectionBaseOnly
+      )
 
     materializeOpt[IntersectionBase & IntersectionMarker] mustBe empty
   }
@@ -160,9 +162,7 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
   }
 
   it should "preserve a narrowed output type from a union variant" in {
-    given CustomMaterialize[Int] with
-      type Out = 5
-      def apply(): 5 = 5
+    given Materialize.Aux[Int, 5] = Materialize.fromValue[Int, 5](5)
 
     val value: SingleElementProduct[5] =
       materialize[SingleElementProduct[Int] | String]
@@ -309,9 +309,7 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
   }
 
   it should "preserve narrowed output types in named tuples" in {
-    given CustomMaterialize[Int] with
-      type Out = 5
-      def apply(): 5 = 5
+    given Materialize.Aux[Int, 5] = Materialize.fromValue[Int, 5](5)
 
     val value: (a: 5, b: "ok") =
       materialize[(a: Int, b: "ok")]
@@ -341,9 +339,7 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
   }
 
   it should "allow assigning a narrowed invariant product" in {
-    given CustomMaterialize[Int] with
-      type Out = 5
-      def apply(): 5 = 5
+    given Materialize.Aux[Int, 5] = Materialize.fromValue[Int, 5](5)
 
     val value: SingleElementProduct[5] =
       materialize[SingleElementProduct[Int]]
@@ -393,9 +389,7 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
   }
 
   it should "preserve narrowed output types in nested products" in {
-    given CustomMaterialize[Int] with
-      type Out = 5
-      def apply(): 5 = 5
+    given Materialize.Aux[Int, 5] = Materialize.fromValue[Int, 5](5)
 
     type Expected = MultipleElementsProduct[
       SingleElementProduct[Int] & SingleElementProduct[5],
@@ -578,24 +572,24 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
     materializeOpt[GenericProductEnum[String]] mustBe None
   }
 
-  behavior of "custom materialization"
+  behavior of "explicit materialization"
 
-  it should "materialize type using custom implementation" in {
-    assertExactType[ClassWithCustomMaterialization](
-      materializeOpt[ClassWithCustomMaterialization].value
-    ) mustBe ClassWithCustomMaterialization.instance
+  it should "materialize type using an explicit implementation" in {
+    assertExactType[ClassWithExplicitMaterialization](
+      materializeOpt[ClassWithExplicitMaterialization].value
+    ) mustBe ClassWithExplicitMaterialization.instance
   }
 
-  it should "prefer custom materialization over built-in implementation" in {
-    var customMaterializationUsed = false
+  it should "prefer explicit materialization over built-in implementation" in {
+    var explicitMaterializationUsed = false
 
-    given CustomMaterialize[Unit]:
-      override type Out = Unit
-      override def apply(): Unit =
-        customMaterializationUsed = true
+    given Materialize[Unit] = Materialize.fromValue {
+      explicitMaterializationUsed = true
+      ()
+    }
 
     assertExactType[Unit](materializeOpt[Unit].value) mustBe ()
-    customMaterializationUsed mustBe true
+    explicitMaterializationUsed mustBe true
   }
 
   behavior of "compile-time contract"
@@ -659,10 +653,7 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
     precise mustBe Some(IntersectionLeaf)
   }
 
-  it should "prefer explicit Materialize over CustomMaterialize" in {
-    given CustomMaterialize[IntersectionBase] with
-      type Out = IntersectionLeaf.type
-      def apply(): IntersectionLeaf.type = IntersectionLeaf
+  it should "use precise explicit Materialize evidence" in {
     given Materialize.Aux[IntersectionBase, ExplicitMaterializeLeaf.type] =
       Materialize.fromValue[IntersectionBase, ExplicitMaterializeLeaf.type](
         ExplicitMaterializeLeaf
@@ -786,19 +777,19 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
 
   it should "explain why an unsupported type cannot be materialized" in {
     diagnostics("materialize[String]") mustBe List(
-      "Type java.lang.String cannot be materialized. Supported forms are literal types, tuples, products, single-variant sums, or CustomMaterialize."
+      "Type java.lang.String cannot be materialized. Supported forms are literal types, tuples, products, single-variant sums, or explicitly supplied Materialize evidence."
     )
   }
 
   it should "explain why unsupported Materialize evidence cannot be derived" in {
     diagnostics("Materialize.derived[String]") mustBe List(
-      "Type java.lang.String cannot be materialized. Supported forms are literal types, tuples, products, single-variant sums, or CustomMaterialize."
+      "Type java.lang.String cannot be materialized. Supported forms are literal types, tuples, products, single-variant sums, or explicitly supplied Materialize evidence."
     )
   }
 
   it should "identify an unsupported tuple element" in {
     diagnostics("materialize[(5, String, true)]") mustBe List(
-      "Element 1 of tuple scala.Tuple3[5, scala.Predef.String, true] (java.lang.String) cannot be materialized: Type java.lang.String cannot be materialized. Supported forms are literal types, tuples, products, single-variant sums, or CustomMaterialize."
+      "Element 1 of tuple scala.Tuple3[5, scala.Predef.String, true] (java.lang.String) cannot be materialized: Type java.lang.String cannot be materialized. Supported forms are literal types, tuples, products, single-variant sums, or explicitly supplied Materialize evidence."
     )
   }
 
@@ -832,13 +823,13 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
     diagnostics(
       "materialize[MultipleElementsProduct[\"ok\", false, String]]"
     ) mustBe List(
-      "Field 'c' of MaterializeSpec.this.MultipleElementsProduct[\"ok\", false, scala.Predef.String] (java.lang.String) cannot be materialized: Type java.lang.String cannot be materialized. Supported forms are literal types, tuples, products, single-variant sums, or CustomMaterialize."
+      "Field 'c' of MaterializeSpec.this.MultipleElementsProduct[\"ok\", false, scala.Predef.String] (java.lang.String) cannot be materialized: Type java.lang.String cannot be materialized. Supported forms are literal types, tuples, products, single-variant sums, or explicitly supplied Materialize evidence."
     )
   }
 
   it should "preserve context for nested tuple errors" in {
     diagnostics("materialize[(5, (true, String))]") mustBe List(
-      "Element 1 of tuple scala.Tuple2[5, scala.Tuple2[true, scala.Predef.String]] (scala.Tuple2[true, scala.Predef.String]) cannot be materialized: Element 1 of tuple scala.Tuple2[true, scala.Predef.String] (java.lang.String) cannot be materialized: Type java.lang.String cannot be materialized. Supported forms are literal types, tuples, products, single-variant sums, or CustomMaterialize."
+      "Element 1 of tuple scala.Tuple2[5, scala.Tuple2[true, scala.Predef.String]] (scala.Tuple2[true, scala.Predef.String]) cannot be materialized: Element 1 of tuple scala.Tuple2[true, scala.Predef.String] (java.lang.String) cannot be materialized: Type java.lang.String cannot be materialized. Supported forms are literal types, tuples, products, single-variant sums, or explicitly supplied Materialize evidence."
     )
   }
 
@@ -846,13 +837,13 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
     diagnostics(
       "materialize[MultipleElementsProduct[\"ok\", SingleElementProduct[String], false]]"
     ) mustBe List(
-      "Field 'b' of MaterializeSpec.this.MultipleElementsProduct[\"ok\", MaterializeSpec.this.SingleElementProduct[scala.Predef.String], false] (MaterializeSpec.this.SingleElementProduct[scala.Predef.String]) cannot be materialized: Field 'a' of MaterializeSpec.this.SingleElementProduct[scala.Predef.String] (java.lang.String) cannot be materialized: Type java.lang.String cannot be materialized. Supported forms are literal types, tuples, products, single-variant sums, or CustomMaterialize."
+      "Field 'b' of MaterializeSpec.this.MultipleElementsProduct[\"ok\", MaterializeSpec.this.SingleElementProduct[scala.Predef.String], false] (MaterializeSpec.this.SingleElementProduct[scala.Predef.String]) cannot be materialized: Field 'a' of MaterializeSpec.this.SingleElementProduct[scala.Predef.String] (java.lang.String) cannot be materialized: Type java.lang.String cannot be materialized. Supported forms are literal types, tuples, products, single-variant sums, or explicitly supplied Materialize evidence."
     )
   }
 
   it should "preserve context for named tuple errors" in {
     diagnostics("materialize[(a: 5, b: String)]") mustBe List(
-      "Element 1 of tuple scala.NamedTuple.NamedTuple[scala.Tuple2[\"a\", \"b\"], scala.Tuple2[5, scala.Predef.String]] (java.lang.String) cannot be materialized: Type java.lang.String cannot be materialized. Supported forms are literal types, tuples, products, single-variant sums, or CustomMaterialize."
+      "Element 1 of tuple scala.NamedTuple.NamedTuple[scala.Tuple2[\"a\", \"b\"], scala.Tuple2[5, scala.Predef.String]] (java.lang.String) cannot be materialized: Type java.lang.String cannot be materialized. Supported forms are literal types, tuples, products, single-variant sums, or explicitly supplied Materialize evidence."
     )
   }
 
@@ -876,31 +867,31 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
 
   it should "identify an unsupported Option[Nothing] variant" in {
     diagnostics("materialize[Option[Nothing]]") mustBe List(
-      "Sum type scala.Option[scala.Nothing] cannot be materialized because variant scala.Some[scala.Nothing] cannot be materialized: Field 'value' of scala.Some[scala.Nothing] (scala.Nothing) cannot be materialized: Type scala.Nothing cannot be materialized. Supported forms are literal types, tuples, products, single-variant sums, or CustomMaterialize."
+      "Sum type scala.Option[scala.Nothing] cannot be materialized because variant scala.Some[scala.Nothing] cannot be materialized: Field 'value' of scala.Some[scala.Nothing] (scala.Nothing) cannot be materialized: Type scala.Nothing cannot be materialized. Supported forms are literal types, tuples, products, single-variant sums, or explicitly supplied Materialize evidence."
     )
   }
 
   it should "explain recursive sum branch failures" in {
     diagnostics("materialize[RecursiveRoot]") mustBe List(
-      "Sum type MaterializeSpec.this.RecursiveRoot cannot be materialized because variant MaterializeSpec.this.RecursiveNode cannot be materialized: Field 'next' of MaterializeSpec.this.RecursiveNode (MaterializeSpec.this.RecursiveRoot) cannot be materialized: Type MaterializeSpec.this.RecursiveRoot cannot be materialized. Supported forms are literal types, tuples, products, single-variant sums, or CustomMaterialize."
+      "Sum type MaterializeSpec.this.RecursiveRoot cannot be materialized because variant MaterializeSpec.this.RecursiveNode cannot be materialized: Field 'next' of MaterializeSpec.this.RecursiveNode (MaterializeSpec.this.RecursiveRoot) cannot be materialized: Type MaterializeSpec.this.RecursiveRoot cannot be materialized. Supported forms are literal types, tuples, products, single-variant sums, or explicitly supplied Materialize evidence."
     )
   }
 
   it should "explain directly recursive product failures" in {
     diagnostics("materialize[RecursiveProduct]") mustBe List(
-      "Field 'next' of MaterializeSpec.this.RecursiveProduct (MaterializeSpec.this.RecursiveProduct) cannot be materialized: Type MaterializeSpec.this.RecursiveProduct cannot be materialized. Supported forms are literal types, tuples, products, single-variant sums, or CustomMaterialize."
+      "Field 'next' of MaterializeSpec.this.RecursiveProduct (MaterializeSpec.this.RecursiveProduct) cannot be materialized: Type MaterializeSpec.this.RecursiveProduct cannot be materialized. Supported forms are literal types, tuples, products, single-variant sums, or explicitly supplied Materialize evidence."
     )
   }
 
   it should "explain generic recursive sum branch failures" in {
     diagnostics("materialize[GenericRecursiveRoot[5]]") mustBe List(
-      "Sum type MaterializeSpec.this.GenericRecursiveRoot[5] cannot be materialized because variant MaterializeSpec.this.GenericRecursiveNode[5] cannot be materialized: Field 'next' of MaterializeSpec.this.GenericRecursiveNode[5] (MaterializeSpec.this.GenericRecursiveRoot[5]) cannot be materialized: Type MaterializeSpec.this.GenericRecursiveRoot[5] cannot be materialized. Supported forms are literal types, tuples, products, single-variant sums, or CustomMaterialize."
+      "Sum type MaterializeSpec.this.GenericRecursiveRoot[5] cannot be materialized because variant MaterializeSpec.this.GenericRecursiveNode[5] cannot be materialized: Field 'next' of MaterializeSpec.this.GenericRecursiveNode[5] (MaterializeSpec.this.GenericRecursiveRoot[5]) cannot be materialized: Type MaterializeSpec.this.GenericRecursiveRoot[5] cannot be materialized. Supported forms are literal types, tuples, products, single-variant sums, or explicitly supplied Materialize evidence."
     )
   }
 
   it should "explain all unsupported sum variants" in {
     diagnostics("materialize[MultipleRejectedRoot]") mustBe List(
-      "Sum type MaterializeSpec.this.MultipleRejectedRoot cannot be materialized because these variants cannot be materialized: MaterializeSpec.this.FirstRejected (Field 'value' of MaterializeSpec.this.FirstRejected (java.lang.String) cannot be materialized: Type java.lang.String cannot be materialized. Supported forms are literal types, tuples, products, single-variant sums, or CustomMaterialize.), MaterializeSpec.this.SecondRejected (Field 'value' of MaterializeSpec.this.SecondRejected (scala.Int) cannot be materialized: Type scala.Int cannot be materialized. Supported forms are literal types, tuples, products, single-variant sums, or CustomMaterialize.)."
+      "Sum type MaterializeSpec.this.MultipleRejectedRoot cannot be materialized because these variants cannot be materialized: MaterializeSpec.this.FirstRejected (Field 'value' of MaterializeSpec.this.FirstRejected (java.lang.String) cannot be materialized: Type java.lang.String cannot be materialized. Supported forms are literal types, tuples, products, single-variant sums, or explicitly supplied Materialize evidence.), MaterializeSpec.this.SecondRejected (Field 'value' of MaterializeSpec.this.SecondRejected (scala.Int) cannot be materialized: Type scala.Int cannot be materialized. Supported forms are literal types, tuples, products, single-variant sums, or explicitly supplied Materialize evidence.)."
     )
   }
 
@@ -971,7 +962,7 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
 
   it should "explain why an opaque type cannot be materialized" in {
     diagnostics("materialize[OpaqueTypes.Value]") mustBe List(
-      "Type MaterializeSpec.this.OpaqueTypes.Value cannot be materialized. Supported forms are literal types, tuples, products, single-variant sums, or CustomMaterialize."
+      "Type MaterializeSpec.this.OpaqueTypes.Value cannot be materialized. Supported forms are literal types, tuples, products, single-variant sums, or explicitly supplied Materialize evidence."
     )
   }
 
@@ -979,19 +970,19 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
     diagnostics("materialize[RefinedString]") mustBe List(
       """Type scala.Predef.String {
           |  type Marker >: true <: true
-          |} cannot be materialized. Supported forms are literal types, tuples, products, single-variant sums, or CustomMaterialize.""".stripMargin
+          |} cannot be materialized. Supported forms are literal types, tuples, products, single-variant sums, or explicitly supplied Materialize evidence.""".stripMargin
     )
   }
 
   it should "explain why Nothing cannot be materialized" in {
     diagnostics("materialize[Nothing]") mustBe List(
-      "Type scala.Nothing cannot be materialized. Supported forms are literal types, tuples, products, single-variant sums, or CustomMaterialize."
+      "Type scala.Nothing cannot be materialized. Supported forms are literal types, tuples, products, single-variant sums, or explicitly supplied Materialize evidence."
     )
   }
 
   it should "explain why Any cannot be materialized" in {
     diagnostics("materialize[Any]") mustBe List(
-      "Type scala.Any cannot be materialized. Supported forms are literal types, tuples, products, single-variant sums, or CustomMaterialize."
+      "Type scala.Any cannot be materialized. Supported forms are literal types, tuples, products, single-variant sums, or explicitly supplied Materialize evidence."
     )
   }
 
@@ -1009,7 +1000,7 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
 
   it should "explain an unsupported generic enum field" in {
     diagnostics("materialize[GenericProductEnum[String]]") mustBe List(
-      "The only variant of MaterializeSpec.this.GenericProductEnum[scala.Predef.String] (MaterializeSpec.this.GenericProductEnum.Value[java.lang.String]) cannot be materialized: Field 'value' of MaterializeSpec.this.GenericProductEnum.Value[java.lang.String] (java.lang.String) cannot be materialized: Type java.lang.String cannot be materialized. Supported forms are literal types, tuples, products, single-variant sums, or CustomMaterialize."
+      "The only variant of MaterializeSpec.this.GenericProductEnum[scala.Predef.String] (MaterializeSpec.this.GenericProductEnum.Value[java.lang.String]) cannot be materialized: Field 'value' of MaterializeSpec.this.GenericProductEnum.Value[java.lang.String] (java.lang.String) cannot be materialized: Type java.lang.String cannot be materialized. Supported forms are literal types, tuples, products, single-variant sums, or explicitly supplied Materialize evidence."
     )
   }
 
@@ -1137,16 +1128,14 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
     case Value(value: A) extends GenericProductEnum[A]
   }
 
-  private sealed abstract class ClassWithCustomMaterialization
+  private sealed abstract class ClassWithExplicitMaterialization
 
-  private object ClassWithCustomMaterialization:
-    val instance: ClassWithCustomMaterialization =
-      new ClassWithCustomMaterialization {}
+  private object ClassWithExplicitMaterialization:
+    val instance: ClassWithExplicitMaterialization =
+      new ClassWithExplicitMaterialization {}
 
-  private given CustomMaterialize[ClassWithCustomMaterialization]:
-    override type Out = ClassWithCustomMaterialization
-    override def apply(): ClassWithCustomMaterialization =
-      ClassWithCustomMaterialization.instance
+  private given Materialize[ClassWithExplicitMaterialization] =
+    Materialize.fromValue(ClassWithExplicitMaterialization.instance)
 
   private type TypeLambda[C <: Boolean] <: Option[String] =
     C match

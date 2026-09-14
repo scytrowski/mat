@@ -60,7 +60,7 @@ compiler, Scala 3.8.4; both Scala versions resolve that artifact.
   materializable variant
 - Materialize named tuples while preserving their labels
 - Materialize supported intersection types such as `5 & Int`
-- Override built-in rules with `CustomMaterialize[A]`
+- Override built-in rules with explicit `Materialize[A]` evidence
 - Require materializable types through `Materialize[A]`
 - Safe fallback with `materializeOpt[A]` returning `Option`
 
@@ -83,8 +83,7 @@ The `%%` operator selects the Scala 3 binary artifact for both Scala 3.8.x and
 | --- | --- | --- |
 | `materialize[A]` | Return the materialized value with its most precise available type | Compilation error with a diagnostic |
 | `materializeOpt[A]` | Try materialization without failing compilation | Returns `None` without a derivation error |
-| `Materialize[A]` | Reuse evidence and expose the precise `Out` type | Evidence cannot be derived |
-| `CustomMaterialize[A]` | Supply an application-specific value and type | Built-in derivation is used when no custom instance exists |
+| `Materialize[A]` | Reuse evidence, or supply an application-specific value and type | Evidence cannot be derived |
 
 Both inline methods are transparent. Their public signature is `Any` so the
 macro can preserve a more precise type at each call site; normal usage should
@@ -210,33 +209,6 @@ val tree: Option[Tree] = materializeOpt[Tree]
 // tree: None
 ```
 
-### Provide custom materialization logic
-
-Resolution always checks an explicit `Materialize[A]` first. If no such
-evidence is available, `CustomMaterialize[A]` takes precedence over the
-built-in materialization rules used by the macro.
-
-```scala
-import me.cytrowski.mat.*
-
-sealed abstract class SomeClass
-
-object SomeClass:
-  val instance: SomeClass = new SomeClass {}
-
-given CustomMaterialize[SomeClass]:
-  override type Out = SomeClass
-  override def apply(): SomeClass = SomeClass.instance
-
-val x: SomeClass = materialize[SomeClass]
-// x: SomeClass.instance
-```
-
-`CustomMaterialize[A]` has priority over all built-in derivation rules. This is
-useful when a type has a built-in representation but the application needs a
-different value. An explicit `Materialize[A]` still has higher priority than
-`CustomMaterialize[A]`.
-
 ### Provide `Materialize[A]` explicitly
 
 `Materialize` is sealed, but external code can provide evidence using
@@ -258,7 +230,7 @@ time the returned evidence is applied. This is useful for explicit evidence,
 but it does not make the value a compile-time constant.
 
 An explicit `Materialize[A]` in scope is used before the macro tries to derive
-a new instance.
+a new instance, including while deriving nested products, tuples and sums.
 
 ### Require a materializable type
 
@@ -312,7 +284,7 @@ The built-in derivation supports the following forms:
 - case-class products whose fields can all be materialized;
 - enums and sealed-trait sums with exactly one materializable candidate,
   including nested and parameterized ADTs;
-- custom values supplied through `CustomMaterialize[A]`.
+- explicitly supplied `Materialize[A]` evidence.
 
 The rules are intentionally conservative:
 

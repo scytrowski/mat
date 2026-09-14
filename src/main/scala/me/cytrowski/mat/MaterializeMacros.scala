@@ -52,7 +52,7 @@ private[mat] object MaterializeMacros:
   private object MaterializeErrorRenderer:
     def render(error: MaterializeError): String = error match
       case MaterializeError.UnsupportedType(tpe) =>
-        s"Type $tpe cannot be materialized. Supported forms are literal types, tuples, products, single-variant sums, or CustomMaterialize."
+        s"Type $tpe cannot be materialized. Supported forms are literal types, tuples, products, single-variant sums, or explicitly supplied Materialize evidence."
       case MaterializeError.TupleElement(owner, index, elementType, cause) =>
         s"Element $index of tuple $owner ($elementType) cannot be materialized: ${render(cause)}"
       case MaterializeError.ProductField(owner, name, fieldType, cause) =>
@@ -85,10 +85,9 @@ private[mat] object MaterializeMacros:
     import quotes.reflect.*
     given DerivationContext = new DerivationContext
 
-    Expr.summon[Materialize[A]] match
-      case Some(materialize) =>
-        '{ $materialize.apply() }
-      case None =>
+    findExplicitMaterialize[A] match
+      case Some((_, value)) => value
+      case None             =>
         derive[A] match
           case Right((_, value)) => value
           case Left(error)       =>
@@ -113,41 +112,41 @@ private[mat] object MaterializeMacros:
     import quotes.reflect.*
     given DerivationContext = new DerivationContext
 
+    findExplicitMaterialize[A] match
+      case Some((outType, value)) =>
+        outType.asType match
+          case '[out] if outType =:= TypeRepr.of[Nothing] =>
+            '{ Some(${ value }.asInstanceOf[A]): Option[A] }
+          case '[out] =>
+            '{ Some(${ value }.asInstanceOf[out]) }
+      case None =>
+        derive[A] match
+          case Right((outType, value)) =>
+            outType.asType match
+              case '[out] =>
+                '{ Some(${ value.asExprOf[out] }) }
+          case Left(_) => '{ None }
+
+  private def findExplicitMaterialize[A: Type](using
+      quotes: Quotes
+  ): Option[(quotes.reflect.TypeRepr, Expr[Any])] =
+    import quotes.reflect.*
+
     val derivedMaterialize =
       TypeRepr.of[Materialize.type].typeSymbol.methodMember("derived").head
-    val explicitMaterialize =
-      Implicits.searchIgnoring(TypeRepr.of[Materialize[A]])(
-        derivedMaterialize
-      ) match
-        case success: ImplicitSearchSuccess =>
-          success.tree.tpe.widen.asType match
-            case '[Materialize[A] { type Out = out }] =>
-              val materialize = success.tree.asExprOf[Materialize[A]]
-              if TypeRepr.of[out] =:= TypeRepr.of[Nothing] then
-                Some(
-                  '{
-                    Some(${ materialize }.apply().asInstanceOf[A]): Option[A]
-                  }
-                )
-              else
-                Some(
-                  '{ Some(${ materialize }.apply().asInstanceOf[out]) }
-                )
-            case _ =>
-              val materialize = success.tree.asExprOf[Materialize[A]]
-              Some(
-                '{ Some(${ materialize }.apply().asInstanceOf[A]) }
-              )
-        case _ => None
 
-    explicitMaterialize.getOrElse {
-      derive[A] match
-        case Right((outType, value)) =>
-          outType.asType match
-            case '[out] =>
-              '{ Some(${ value.asExprOf[out] }) }
-        case Left(_) => '{ None }
-    }
+    Implicits.searchIgnoring(TypeRepr.of[Materialize[A]])(
+      derivedMaterialize
+    ) match
+      case success: ImplicitSearchSuccess =>
+        success.tree.tpe.widen.asType match
+          case '[Materialize[A] { type Out = out }] =>
+            val materialize = success.tree.asExprOf[Materialize[A]]
+            Some((TypeRepr.of[out], '{ $materialize.apply() }))
+          case _ =>
+            val materialize = success.tree.asExprOf[Materialize[A]]
+            Some((TypeRepr.of[A], '{ $materialize.apply() }))
+      case _ => None
 
   private def derive[A: Type](using
       quotes: Quotes,
@@ -180,21 +179,8 @@ private[mat] object MaterializeMacros:
   ): Option[
     Either[MaterializeError, (quotes.reflect.TypeRepr, Expr[Any])]
   ] =
-    val customMaterialize =
-      quotes.reflect.Implicits.search(
-        quotes.reflect.TypeRepr.of[CustomMaterialize[A]]
-      ) match
-        case success: quotes.reflect.ImplicitSearchSuccess =>
-          success.tree.tpe.widen.asType match
-            case '[CustomMaterialize[A] { type Out = out }] =>
-              val custom = success.tree.asExprOf[CustomMaterialize[A]]
-              Some(
-                Right((quotes.reflect.TypeRepr.of[out], '{ $custom.apply() }))
-              )
-            case _ => None
-        case _ => None
-
-    customMaterialize
+    findExplicitMaterialize[A]
+      .map(Right(_))
       .orElse(deriveValueOf[A])
       .orElse(deriveIntersection[A])
       .orElse(deriveUnion[A])
