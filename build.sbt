@@ -22,12 +22,12 @@ ThisBuild / coverageMinimumBranchTotal := 85.0
 ThisBuild / coverageFailOnMinimum := true
 ThisBuild / description := "Scala 3 macro library for compile-time materialization of literal types, tuples, named tuples, products, unions, intersections and singleton-sum ADTs"
 ThisBuild / licenses := Seq(
-  "MIT" -> url("https://github.com/scytrowski/mat/blob/main/LICENSE")
+  "MIT" -> uri("https://github.com/scytrowski/mat/blob/main/LICENSE")
 )
-ThisBuild / homepage := Some(url("https://github.com/scytrowski/mat"))
+ThisBuild / homepage := Some(uri("https://cytrowski.me/projects/mat"))
 ThisBuild / scmInfo := Some(
   ScmInfo(
-    browseUrl = url("https://github.com/scytrowski/mat"),
+    browseUrl = uri("https://github.com/scytrowski/mat"),
     connection = "scm:git:https://github.com/scytrowski/mat.git",
     devConnection = Some("scm:git:https://github.com/scytrowski/mat.git")
   )
@@ -36,8 +36,8 @@ ThisBuild / developers := List(
   Developer(
     id = "scytrowski",
     name = "Szymon Cytrowski",
-    email = "szym.cytrowski@gmail.com",
-    url = url("https://cytrowski.me")
+    email = "szymon@cytrowski.me",
+    url = uri("https://cytrowski.me")
   )
 )
 ThisBuild / versionScheme := Some("early-semver")
