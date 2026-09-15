@@ -385,9 +385,11 @@ benchmarks/
 └── v1.1.0/results.tsv
 ```
 
-The benchmark measures compilation time, including the SBT invocation and
-benchmark compilation. It is intended to detect significant regressions, not
-to provide laboratory-grade performance measurements.
+The benchmark measures the incremental compiler task for each isolated
+benchmark. The three repetitions for each case run in one SBT process to avoid
+repeating SBT startup overhead; the recorded value is their median. It is
+intended to detect significant compiler regressions, not to provide
+laboratory-grade performance measurements.
 
 CI runs the coverage check with Scala 3.8.4, the compiler used for the
 published artifact. It enforces statement and branch thresholds:
