@@ -74,7 +74,7 @@ jobs:
           SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
 
       - name: Generate Scaladoc with local assets
-        run: sbt --batch ++3.8.4 vendorScaladocAssets
+        run: sbt --batch ';++3.8.4;vendorScaladocAssets'
 
       - name: Update Scaladoc artifact branch
         env:

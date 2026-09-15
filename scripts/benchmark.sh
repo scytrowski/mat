@@ -17,16 +17,16 @@ for benchmark_kind in tuple product union; do
   for benchmark_size in 16 24 32; do
     echo "Running $benchmark_kind benchmark with $benchmark_size elements ($repetitions repetitions)"
 
-    commands=("++$benchmark_scala_version")
+    sbt_commands=";++$benchmark_scala_version"
     for ((run = 1; run <= repetitions; run++)); do
-      commands+=("Benchmark / clean" "Benchmark / compile")
+      sbt_commands+=";Benchmark / clean;Benchmark / compile"
     done
 
     log_file=$(mktemp)
     if ! sbt --batch --timings \
       -Dmat.benchmark="$benchmark_kind" \
       -Dmat.size="$benchmark_size" \
-      "${commands[@]}" >"$log_file" 2>&1; then
+      "$sbt_commands" >"$log_file" 2>&1; then
       cat "$log_file"
       rm -f "$log_file"
       exit 1
