@@ -4,6 +4,12 @@ on:
   release:
     types:
       - published
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing release tag to process
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -13,13 +19,13 @@ jobs:
     name: Release package
     runs-on: ubuntu-latest
 
-    if: startsWith(github.event.release.tag_name, 'v')
+    if: startsWith(github.event.release.tag_name || inputs.release_tag, 'v')
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
         with:
-          ref: ${{ github.event.release.tag_name }}
+          ref: ${{ github.event.release.tag_name || inputs.release_tag }}
           persist-credentials: true
 
       - name: Set up JDK
@@ -39,7 +45,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: compile-time-benchmark-${{ github.event.release.tag_name }}
+          name: compile-time-benchmark-${{ github.event.release.tag_name || inputs.release_tag }}
           path: benchmark-results.tsv
           if-no-files-found: error
 
@@ -47,7 +53,7 @@ jobs:
         id: benchmark-baseline
         shell: bash
         env:
-          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          RELEASE_TAG: ${{ github.event.release.tag_name || inputs.release_tag }}
         run: |
           set -euo pipefail
 
@@ -78,7 +84,7 @@ jobs:
       - name: Verify release environment
         shell: bash
         env:
-          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          RELEASE_TAG: ${{ github.event.release.tag_name || inputs.release_tag }}
           PGP_PASSPHRASE: ${{ secrets.PGP_PASSPHRASE }}
           PGP_SECRET: ${{ secrets.PGP_SECRET }}
           SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
@@ -93,10 +99,17 @@ jobs:
             fi
           done
 
-          expected_ref="refs/tags/$RELEASE_TAG"
-          if [[ "${GITHUB_REF:-}" != "$expected_ref" ]]; then
-            echo "::error::Release must run from $expected_ref, got ${GITHUB_REF:-<unset>}."
+          if ! git rev-parse --verify "$RELEASE_TAG^{commit}" >/dev/null 2>&1; then
+            echo "::error::Release tag $RELEASE_TAG does not exist."
             exit 1
+          fi
+
+          if [[ "${GITHUB_EVENT_NAME:-}" == "release" ]]; then
+            expected_ref="refs/tags/$RELEASE_TAG"
+            if [[ "${GITHUB_REF:-}" != "$expected_ref" ]]; then
+              echo "::error::Release must run from $expected_ref, got ${GITHUB_REF:-<unset>}."
+              exit 1
+            fi
           fi
 
       - name: Publish to Sonatype
@@ -124,7 +137,7 @@ jobs:
 
       - name: Update Scaladoc artifact branch
         env:
-          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          RELEASE_TAG: ${{ github.event.release.tag_name || inputs.release_tag }}
         run: |
           set -euo pipefail
 
@@ -166,7 +179,7 @@ jobs:
 
       - name: Update benchmark artifact branch
         env:
-          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          RELEASE_TAG: ${{ github.event.release.tag_name || inputs.release_tag }}
         run: |
           set -euo pipefail
 
