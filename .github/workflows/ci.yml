@@ -41,7 +41,9 @@ jobs:
         run: sbt --batch +test
 
       - name: Coverage
-        run: sbt --batch ';++3.8.4;coverage;clean;test;coverageReport'
+        run: |
+          sbt --batch ';++3.8.4;clean'
+          sbt --batch ';++3.8.4;coverage;test;coverageReport'
 
       - name: Upload coverage report
         uses: actions/upload-artifact@v7
