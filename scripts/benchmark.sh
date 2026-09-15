@@ -37,7 +37,10 @@ for benchmark_kind in tuple product union; do
     done < <(
       awk '
         /Benchmark \/ compileIncremental/ {
-          if (match($0, /: *([0-9]+) ms/, timing)) print timing[1]
+          timing = $0
+          sub(/^.*: */, "", timing)
+          sub(/ ms.*$/, "", timing)
+          if (timing ~ /^[0-9]+$/) print timing
         }
       ' "$log_file" | head -n "$repetitions"
     )
