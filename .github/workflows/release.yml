@@ -46,9 +46,19 @@ jobs:
       - name: Load previous benchmark baseline
         id: benchmark-baseline
         shell: bash
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: |
+          set -euo pipefail
+
           if git fetch origin benchmarks:refs/remotes/origin/benchmarks 2>/dev/null \
-            && git show origin/benchmarks:latest/results.tsv > benchmark-baseline.tsv 2>/dev/null; then
+            && baseline_tag=$(git ls-tree --name-only origin/benchmarks \
+              | awk '/^v[0-9]+\.[0-9]+\.[0-9]+$/ { print }' \
+              | sort -V \
+              | awk -v current="$RELEASE_TAG" '$0 == current { exit } { previous = $0 } END { print previous }') \
+            && [[ -n "$baseline_tag" ]] \
+            && git show "origin/benchmarks:$baseline_tag/results.tsv" > benchmark-baseline.tsv 2>/dev/null; then
+            echo "Using benchmark baseline from $baseline_tag."
             echo "available=true" >> "$GITHUB_OUTPUT"
           else
             echo "available=false" >> "$GITHUB_OUTPUT"
