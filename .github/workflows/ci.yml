@@ -47,7 +47,9 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: coverage-report
-          path: target/out/jvm/scala-3.8.4/mat/coverage-report
+          path: |
+            target/out/jvm/scala-3.8.4/mat/coverage-report
+            target/out/jvm/scala-3.8.4/mat/scoverage-report
           if-no-files-found: error
 
       - name: Package
