@@ -361,7 +361,8 @@ To preview the documentation locally, run:
 sbt --batch ++3.8.4 vendorScaladocAssets
 ```
 
-The local HTML documentation is written to `target/scala-3.8.4/api`.
+The local HTML documentation is written to
+`target/out/jvm/scala-3.8.4/mat/api`.
 The task also scans the generated HTML and CSS for external assets, downloads
 them into the generated `assets/` directory and rewrites the files to use
 local copies. This includes JavaScript, stylesheets, images, fonts and other
