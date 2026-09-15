@@ -66,7 +66,7 @@ jobs:
           PGP_SECRET: ${{ secrets.PGP_SECRET }}
 
       - name: Publish to Sonatype
-        run: sbt --batch ci-release
+        run: sbt --server --batch ci-release
         env:
           PGP_PASSPHRASE: ${{ secrets.PGP_PASSPHRASE }}
           PGP_SECRET: ${{ secrets.PGP_SECRET }}
@@ -74,7 +74,7 @@ jobs:
           SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
 
       - name: Generate Scaladoc with local assets
-        run: sbt --batch ';++3.8.4;vendorScaladocAssets'
+        run: sbt --server --batch ';++3.8.4;vendorScaladocAssets'
 
       - name: Update Scaladoc artifact branch
         env:

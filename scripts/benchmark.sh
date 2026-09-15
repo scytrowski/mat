@@ -20,7 +20,7 @@ for benchmark_kind in tuple product union; do
       echo "Running $benchmark_kind benchmark with $benchmark_size elements (run $run/$repetitions)"
       start_us=${EPOCHREALTIME/./}
 
-      SBT_NATIVE_CLIENT=false sbt --batch \
+      sbt --server --batch \
         -Dmat.benchmark="$benchmark_kind" \
         -Dmat.size="$benchmark_size" \
         ";++$benchmark_scala_version;Benchmark / clean;Benchmark / compile"
