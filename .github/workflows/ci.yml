@@ -48,8 +48,8 @@ jobs:
         with:
           name: coverage-report
           path: |
-            target/out/jvm/scala-3.8.4/mat/coverage-report
-            target/out/jvm/scala-3.8.4/mat/scoverage-report
+            target/**/coverage-report
+            target/**/scoverage-report
           if-no-files-found: error
 
       - name: Package
