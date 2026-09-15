@@ -35,15 +35,15 @@ jobs:
           key: ${{ runner.os }}-sbt-${{ hashFiles('**/build.sbt', '**/project/**', '.scalafmt.conf') }}
 
       - name: Check formatting
-        run: sbt --server --batch scalafmtCheckAll
+        run: sbt --server --no-server --batch scalafmtCheckAll
 
       - name: Run tests
-        run: sbt --server --batch +test
+        run: sbt --server --no-server --batch +test
 
       - name: Coverage
         run: |
-          sbt --server --batch ';++3.8.4;clean'
-          sbt --server --batch ';++3.8.4;coverage;test;coverageReport'
+          sbt --server --no-server --batch ';++3.8.4;clean'
+          sbt --server --no-server --batch ';++3.8.4;coverage;test;coverageReport'
 
       - name: Upload coverage report
         uses: actions/upload-artifact@v7
@@ -53,4 +53,4 @@ jobs:
           if-no-files-found: error
 
       - name: Package
-        run: sbt --server --batch +package
+        run: sbt --server --no-server --batch +package
