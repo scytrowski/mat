@@ -169,8 +169,12 @@ jobs:
           git -C "$publish_dir" config user.name "github-actions[bot]"
           git -C "$publish_dir" config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git -C "$publish_dir" add --all
-          git -C "$publish_dir" commit -m "Publish Scaladoc for $RELEASE_TAG"
-          git -C "$publish_dir" push origin HEAD:scaladoc
+          if git -C "$publish_dir" diff --cached --quiet; then
+            echo "Scaladoc for $RELEASE_TAG is already up to date."
+          else
+            git -C "$publish_dir" commit -m "Publish Scaladoc for $RELEASE_TAG"
+            git -C "$publish_dir" push origin HEAD:scaladoc
+          fi
 
       - name: Prepare benchmark history
         run: |
@@ -212,5 +216,9 @@ jobs:
           git -C "$publish_dir" config user.name "github-actions[bot]"
           git -C "$publish_dir" config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git -C "$publish_dir" add --all
-          git -C "$publish_dir" commit -m "Publish benchmark report for $RELEASE_TAG"
-          git -C "$publish_dir" push origin HEAD:benchmarks
+          if git -C "$publish_dir" diff --cached --quiet; then
+            echo "Benchmark report for $RELEASE_TAG is already up to date."
+          else
+            git -C "$publish_dir" commit -m "Publish benchmark report for $RELEASE_TAG"
+            git -C "$publish_dir" push origin HEAD:benchmarks
+          fi
