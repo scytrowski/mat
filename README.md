@@ -6,6 +6,8 @@
 
 ⚠️ Artifact moved from `io.github.scytrowski.mat` to `me.cytrowski.mat`
 
+See [CHANGELOG.md](CHANGELOG.md) for the release history.
+
 **`mat`** is a lightweight Scala 3 library for materializing types into values at compile time.
 
 It provides a type-directed, macro-based way to turn types such as literal
@@ -232,6 +234,18 @@ but it does not make the value a compile-time constant.
 An explicit `Materialize[A]` in scope is used before the macro tries to derive
 a new instance, including while deriving nested products, tuples and sums.
 
+When the materialized value has a more precise type than `A`, provide that
+type through `Materialize.Aux`:
+
+```scala
+import me.cytrowski.mat.*
+
+given Materialize.Aux[Int, 5] =
+  Materialize.fromValue[Int, 5](5)
+
+val port: 5 = materialize[Int]
+```
+
 ### Require a materializable type
 
 `Materialize[A]` is derived by the macro and can be used as a context bound.
@@ -375,14 +389,15 @@ The benchmark measures compilation time, including the SBT invocation and
 benchmark compilation. It is intended to detect significant regressions, not
 to provide laboratory-grade performance measurements.
 
-The default Scala version also has a coverage check with statement and branch
-thresholds:
+CI runs the coverage check with Scala 3.8.4, the compiler used for the
+published artifact. It enforces statement and branch thresholds:
 
 ```shell
-sbt --batch coverage test coverageReport
+sbt --batch ';++3.8.4;coverage;test;coverageReport'
 ```
 
-The HTML report is generated under `target/scala-3.8.4/coverage-report`.
+The HTML report is generated under
+`target/out/jvm/scala-3.8.4/mat/coverage-report`.
 Run one case and one size independently from the regular tests with:
 
 ```shell
