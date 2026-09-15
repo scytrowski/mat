@@ -65,8 +65,44 @@ jobs:
         env:
           PGP_SECRET: ${{ secrets.PGP_SECRET }}
 
+      - name: Verify release environment
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          PGP_PASSPHRASE: ${{ secrets.PGP_PASSPHRASE }}
+          PGP_SECRET: ${{ secrets.PGP_SECRET }}
+          SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
+          SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
+        run: |
+          set -euo pipefail
+
+          for variable in PGP_PASSPHRASE PGP_SECRET SONATYPE_USERNAME SONATYPE_PASSWORD; do
+            if [[ -z "${!variable:-}" ]]; then
+              echo "::error::Required release secret $variable is missing or empty."
+              exit 1
+            fi
+          done
+
+          expected_ref="refs/tags/$RELEASE_TAG"
+          if [[ "${GITHUB_REF:-}" != "$expected_ref" ]]; then
+            echo "::error::Release must run from $expected_ref, got ${GITHUB_REF:-<unset>}."
+            exit 1
+          fi
+
       - name: Publish to Sonatype
-        run: sbt --server --batch ci-release
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          release_log=$(mktemp)
+          trap 'rm -f "$release_log"' EXIT
+
+          sbt --server --batch ci-release 2>&1 | tee "$release_log"
+
+          if grep -Fq "doing nothing" "$release_log"; then
+            echo "::error::sbt-ci-release skipped publication."
+            exit 1
+          fi
         env:
           PGP_PASSPHRASE: ${{ secrets.PGP_PASSPHRASE }}
           PGP_SECRET: ${{ secrets.PGP_SECRET }}
