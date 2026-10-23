@@ -372,10 +372,11 @@ is therefore independent of external CDNs.
 The repository also contains isolated compile-time stress benchmarks for the
 macro. They derive tuples, products and unions with 16, 24 or 32 elements.
 
-The release workflow runs all nine benchmark cases three times on Scala 3.8.4
-and compares their median times with the latest successful release. A 25% and
-1-second regression threshold is used. The first release creates the baseline;
-a later release that exceeds the threshold is stopped before publishing library
+The release workflow runs all nine benchmark cases five times on Scala 3.8.4
+and compares their median times with the latest successful release. A case is
+flagged only when it is more than 25% and 25 ms slower. The first release using
+the current measurement protocol establishes a comparable baseline; a later
+release that exceeds the threshold is stopped before publishing library
 artifacts.
 Reports are retained as workflow artifacts and on the `benchmarks` branch:
 
@@ -386,11 +387,16 @@ benchmarks/
 └── v1.1.0/results.tsv
 ```
 
-The benchmark measures the incremental compiler task for each isolated
-benchmark. The three repetitions for each case run in one SBT process to avoid
-repeating SBT startup overhead; the recorded value is their median. It is
-intended to detect significant compiler regressions, not to provide
-laboratory-grade performance measurements.
+The benchmark measures compilation for each isolated benchmark source. All
+cases and repetitions run in one SBT process, with one warm-up compilation per
+case; the recorded value is the median of the measured repetitions. Each
+iteration uses a unique generated source copy so the SBT task cache cannot
+replace compilation with a cached result. SBT startup and project loading are
+outside the timed region. The benchmark is intended to detect significant
+compiler regressions, not to provide laboratory-grade performance
+measurements. Results use protocol 2; the first release after this change
+establishes a compatible baseline, and older benchmark files are not compared
+against it.
 
 CI runs the coverage check with Scala 3.8.4, the compiler used for the
 published artifact. It enforces statement and branch thresholds:
