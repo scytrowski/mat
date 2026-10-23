@@ -1,10 +1,11 @@
 benchmark	size	elapsed_ms
-tuple	16	399
-tuple	24	269
-tuple	32	241
-product	16	262
-product	24	438
-product	32	355
-union	16	273
-union	24	244
-union	32	267
+# benchmark-protocol=2
+tuple	16	783
+tuple	24	587
+tuple	32	479
+product	16	494
+product	24	464
+product	32	447
+union	16	258
+union	24	250
+union	32	252
