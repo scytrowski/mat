@@ -1,6 +1,6 @@
 # mat
 
-[![Scala](https://img.shields.io/badge/Scala-3.8.x%20%7C%203.9.x-red.svg)](https://www.scala-lang.org)
+[![Scala](https://img.shields.io/badge/Scala-3.8.x%20%7C%203.9.x%20%7C%203.10.x-red.svg)](https://www.scala-lang.org)
 [![Maven Central](https://img.shields.io/maven-central/v/me.cytrowski/mat_3?label=Maven%20Central&color=green)](https://central.sonatype.com/artifact/me.cytrowski/mat_3/1.1.0)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
@@ -39,16 +39,16 @@ Materialization is performed by a Scala 3 quoted macro at the call site:
   generate larger code. This cost is paid during compilation, not as a runtime
   search for a value.
 - Macro behavior depends on the Scala compiler. This project currently tests
-  Scala 3.8.x and 3.9.x; compiler diagnostics and edge-case behavior should be
-  verified when upgrading Scala.
+  Scala 3.8.x, 3.9.x and 3.10.x; compiler diagnostics and edge-case behavior
+  should be verified when upgrading Scala.
 - Generic methods need a concrete `A` at the call site or an available
   `Materialize[A]` context bound. Materialization is not a replacement for
   constructing values that depend on runtime data.
 
-The library currently supports Scala 3.8.x and 3.9.x. Both versions are tested
-and packaged in CI. Since these Scala versions share the `_3` binary artifact
-suffix, a release publishes one artifact built with the oldest supported
-compiler, Scala 3.8.4; both Scala versions resolve that artifact.
+The library currently supports Scala 3.8.x, 3.9.x and 3.10.x. All three lines
+are tested and packaged in CI. Since these Scala versions share the `_3` binary
+artifact suffix, a release publishes one artifact built with the oldest
+supported compiler, Scala 3.8.4; all supported versions resolve that artifact.
 
 ---
 
@@ -74,8 +74,8 @@ Add `mat` to an SBT project using the cross-building `%%` operator:
 libraryDependencies += "me.cytrowski" %% "mat" % "<version>"
 ```
 
-The `%%` operator selects the Scala 3 binary artifact for both Scala 3.8.x and
-3.9.x projects.
+The `%%` operator selects the Scala 3 binary artifact for Scala 3.8.x, 3.9.x
+and 3.10.x projects.
 
 ---
 
@@ -326,7 +326,7 @@ are rejected.
 
 ### Cross-building and tests
 
-The project compiles and packages the library for both supported Scala
+The project compiles and packages the library for all supported Scala
 versions. The release publishes the single shared `_3` artifact described
 above. During development, the complete test suite can be run for every
 configured Scala version with:

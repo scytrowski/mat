@@ -46,6 +46,13 @@
       "groupName": "Scala 3.9.x toolchain"
     },
     {
+      "matchManagers": ["custom.regex"],
+      "matchPackageNames": ["scala/scala3"],
+      "matchCurrentVersion": "/^3\\.10\\./",
+      "allowedVersions": "3.10.x",
+      "groupName": "Scala 3.10.x toolchain"
+    },
+    {
       "matchManagers": ["sbt"],
       "groupName": "sbt dependencies"
     },
