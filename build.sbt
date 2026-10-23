@@ -11,11 +11,12 @@ ThisBuild / version := {
 ThisBuild / scalaVersion := "3.9.0" // renovate: datasource=github-releases depName=scala/scala3
 ThisBuild / crossScalaVersions := Seq(
   "3.8.4", // renovate: datasource=github-releases depName=scala/scala3
-  "3.9.0" // renovate: datasource=github-releases depName=scala/scala3
+  "3.9.0", // renovate: datasource=github-releases depName=scala/scala3
+  "3.10.0" // renovate: datasource=github-releases depName=scala/scala3
 )
-// Scala 3.8.x and 3.9.x share the `_3` artifact suffix. Cross-build both
-// versions for validation, but publish one artifact to avoid duplicate
-// coordinates in the release repository.
+// Scala 3.8.x, 3.9.x and 3.10.x share the `_3` artifact suffix. Cross-build
+// all supported versions for validation, but publish one artifact to avoid
+// duplicate coordinates in the release repository.
 ThisBuild / publish / skip := scalaVersion.value != crossScalaVersions.value.head
 ThisBuild / coverageMinimumStmtTotal := 90.0
 ThisBuild / coverageMinimumBranchTotal := 85.0
