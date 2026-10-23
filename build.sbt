@@ -48,6 +48,75 @@ resolvers +=
 
 lazy val Benchmark = config("benchmark") extend Compile
 
+Global / commands += Command.args(
+  "benchmarkMatrix",
+  "<output-tsv> <repetitions>"
+) { (initialState, args) =>
+  if args.length != 2 then
+    sys.error("Usage: benchmarkMatrix <output-tsv> <repetitions>")
+
+  val repetitions = args(1).toInt
+  if repetitions < 1 then sys.error("repetitions must be a positive integer")
+
+  val root = Project.extract(initialState).get(baseDirectory)
+  val output = file(args(0)).getAbsoluteFile
+  val inputDir = root / "target" / "benchmark-inputs"
+  IO.delete(inputDir)
+  IO.createDirectory(inputDir)
+  val cases = for
+    kind <- Seq("tuple", "product", "union")
+    size <- Seq(16, 24, 32)
+  yield (kind, size)
+
+  def compileOnce(state: State, kind: String, size: Int, iteration: String): (State, Long) =
+    val original = root / "src" / "benchmark" / "scala" / kind / s"Benchmark$size.scala"
+    val generated = inputDir / s"$kind-$size-$iteration.scala"
+    IO.write(generated, IO.read(original) + s"\n// benchmark iteration: $iteration\n")
+
+    val configured = Project.extract(state).appendWithSession(
+      Seq(Benchmark / unmanagedSources := Seq(generated)),
+      state
+    )
+    val outputDirectory = Project.extract(configured).get(Benchmark / Keys.classDirectory)
+    IO.delete(outputDirectory)
+
+    val started = System.nanoTime()
+    val (nextState, _) = Project.extract(configured).runTask(Benchmark / compile, configured)
+    (nextState, (System.nanoTime() - started) / 1000000L)
+
+  var state = initialState
+  val results = scala.collection.mutable.ArrayBuffer.empty[(String, Int, Long)]
+
+  for (kind, size) <- cases do
+    println(s"Warming up $kind benchmark with $size elements")
+    val (afterWarmup, _) = compileOnce(state, kind, size, s"warmup-${java.util.UUID.randomUUID()}")
+    state = afterWarmup
+
+    val timings = scala.collection.mutable.ArrayBuffer.empty[Long]
+    for run <- 1 to repetitions do
+      println(s"Running $kind benchmark with $size elements (run $run/$repetitions)")
+      val (nextState, elapsed) = compileOnce(
+        state,
+        kind,
+        size,
+        s"run-${java.util.UUID.randomUUID()}"
+      )
+      state = nextState
+      timings += elapsed
+
+    val median = timings.sorted.apply((timings.size - 1) / 2)
+    results += ((kind, size, median))
+    println(s"Completed in $median ms (median of $repetitions runs)")
+
+  IO.write(
+    output,
+    "benchmark\tsize\telapsed_ms\n# benchmark-protocol=2\n" +
+      results.map { case (kind, size, elapsed) => s"$kind\t$size\t$elapsed\n" }.mkString
+  )
+  println(s"Benchmark results written to $output")
+  state
+}
+
 lazy val root = (project in file("."))
   .configs(Benchmark)
   .settings(
