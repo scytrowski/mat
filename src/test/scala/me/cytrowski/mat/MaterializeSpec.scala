@@ -6,6 +6,12 @@ import org.scalatest.matchers.must.Matchers
 import scala.annotation.nowarn
 import scala.compiletime.testing.typeCheckErrors
 
+private sealed trait Issue10Parameter
+private object Issue10Parameter {
+  sealed trait Concrete extends Issue10Parameter
+  case object Concrete extends Concrete
+}
+
 class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
 
   private inline def diagnostics(inline code: String): List[String] =
@@ -436,6 +442,13 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
     assertExactType[SingletonSumVariant.type](
       materializeOpt[SingletonSum].value
     ) mustBe SingletonSumVariant
+  }
+
+  it should "materialize a same-named case object in a single-variant sum" in {
+    val tuple: Issue10Parameter.Concrete.type *: EmptyTuple =
+      materialize[Issue10Parameter.Concrete *: EmptyTuple]
+
+    tuple.head mustBe Issue10Parameter.Concrete
   }
 
   it should "materialize a nested singleton sum" in {
