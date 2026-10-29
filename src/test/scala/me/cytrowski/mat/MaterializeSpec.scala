@@ -1,3 +1,6 @@
+Failed to create stream fd: Operation not permitted
+Failed to create stream fd: Operation not permitted
+Failed to create stream fd: Operation not permitted
 package me.cytrowski.mat
 
 import org.scalatest.OptionValues
@@ -13,6 +16,21 @@ private object Issue10Parameter {
 }
 private sealed trait ExplicitSingletonRoot
 private case object ExplicitSingletonLeaf extends ExplicitSingletonRoot
+private object SameNamedBranches {
+  sealed trait A
+
+  sealed trait B extends A
+  case object B extends B
+
+  sealed trait C extends A
+  case object C extends C
+}
+private object SameNamedNestedBranch {
+  sealed trait A
+  sealed trait B extends A
+  sealed trait C extends B
+  case object C extends C
+}
 
 class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
 
@@ -451,6 +469,51 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
       materialize[Issue10Parameter.Concrete *: EmptyTuple]
 
     tuple.head mustBe Issue10Parameter.Concrete
+  }
+
+  it should "materialize same-named singleton branches but reject their multi-variant parent" in {
+    materializeOpt[SameNamedBranches.A] mustBe empty
+
+    assertExactType[SameNamedBranches.B.type](
+      materializeOpt[SameNamedBranches.B].value
+    ) mustBe SameNamedBranches.B
+
+    assertExactType[SameNamedBranches.C.type](
+      materializeOpt[SameNamedBranches.C].value
+    ) mustBe SameNamedBranches.C
+  }
+
+  it should "materialize a same-named singleton through nested single-variant branches" in {
+    val fromA: SameNamedNestedBranch.C.type =
+      materialize[SameNamedNestedBranch.A]
+    val fromB: SameNamedNestedBranch.C.type =
+      materialize[SameNamedNestedBranch.B]
+    val fromC: SameNamedNestedBranch.C.type =
+      materialize[SameNamedNestedBranch.C]
+
+    fromA mustBe SameNamedNestedBranch.C
+    fromB mustBe SameNamedNestedBranch.C
+    fromC mustBe SameNamedNestedBranch.C
+  }
+
+  it should "prefer explicit evidence for a same-named singleton variant" in {
+    var applications = 0
+    given Materialize.Aux[
+      SameNamedBranches.B,
+      SameNamedBranches.B.type
+    ] = Materialize.fromValue {
+      applications += 1
+      SameNamedBranches.B
+    }
+
+    val first: SameNamedBranches.B.type =
+      materialize[SameNamedBranches.B]
+    val second: SameNamedBranches.B.type =
+      materialize[SameNamedBranches.B]
+
+    first mustBe SameNamedBranches.B
+    second mustBe SameNamedBranches.B
+    applications mustBe 2
   }
 
   it should "materialize a nested singleton sum" in {
