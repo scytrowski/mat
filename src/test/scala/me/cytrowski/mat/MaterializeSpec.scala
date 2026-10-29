@@ -6,6 +6,14 @@ import org.scalatest.matchers.must.Matchers
 import scala.annotation.nowarn
 import scala.compiletime.testing.typeCheckErrors
 
+private sealed trait Issue10Parameter
+private object Issue10Parameter {
+  sealed trait Concrete extends Issue10Parameter
+  case object Concrete extends Concrete
+}
+private sealed trait ExplicitSingletonRoot
+private case object ExplicitSingletonLeaf extends ExplicitSingletonRoot
+
 class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
 
   private inline def diagnostics(inline code: String): List[String] =
@@ -438,6 +446,13 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
     ) mustBe SingletonSumVariant
   }
 
+  it should "materialize a same-named case object in a single-variant sum" in {
+    val tuple: Issue10Parameter.Concrete.type *: EmptyTuple =
+      materialize[Issue10Parameter.Concrete *: EmptyTuple]
+
+    tuple.head mustBe Issue10Parameter.Concrete
+  }
+
   it should "materialize a nested singleton sum" in {
     assertExactType[NestedSingletonLeaf.type](
       materializeOpt[NestedSingletonRoot].value
@@ -728,6 +743,24 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
 
     evidence() mustBe 1
     evidence() mustBe 2
+    applications mustBe 2
+  }
+
+  it should "preserve by-name explicit evidence for a singleton sum variant" in {
+    var applications = 0
+    given Materialize.Aux[
+      ExplicitSingletonLeaf.type,
+      ExplicitSingletonLeaf.type
+    ] = Materialize.fromValue {
+      applications += 1
+      ExplicitSingletonLeaf
+    }
+
+    val first: ExplicitSingletonLeaf.type = materialize[ExplicitSingletonRoot]
+    val second: ExplicitSingletonLeaf.type = materialize[ExplicitSingletonRoot]
+
+    first mustBe ExplicitSingletonLeaf
+    second mustBe ExplicitSingletonLeaf
     applications mustBe 2
   }
 

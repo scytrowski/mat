@@ -556,13 +556,28 @@ private[mat] object MaterializeMacros:
           repr.asType match
             case '[reprType] =>
               Some(
-                derive[reprType].left.map { error =>
-                  MaterializeError.SingleVariant(
-                    owner.show,
-                    TypeRepr.of[reprType].show,
-                    error
-                  )
-                }
+                derive[reprType] match
+                  case success @ Right(_) => success
+                  case Left(_)
+                      if repr.typeSymbol.flags.is(Flags.Module) &&
+                        symbol.companionModule.flags.is(Flags.Module) &&
+                        symbol.companionModule ==
+                        repr.typeSymbol.companionModule =>
+                    // A same-named case object can be mirrored as its parent trait.
+                    Right(
+                      (
+                        repr,
+                        Ref(repr.typeSymbol.companionModule).asExpr
+                      )
+                    )
+                  case Left(error) =>
+                    Left(
+                      MaterializeError.SingleVariant(
+                        owner.show,
+                        TypeRepr.of[reprType].show,
+                        error
+                      )
+                    )
               )
         case _ => Some(Left(unsupportedType[A]))
     else
