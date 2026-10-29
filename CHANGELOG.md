@@ -7,6 +7,13 @@ and this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.2.1] - 2026-10-29
+
+### Fixed
+
+- Fixed materialization of single-variant sealed ADTs whose case object shares
+  the sealed trait's name, including nested branches.
+
 ## [1.2.0] - 2026-10-23
 
 ### Added
