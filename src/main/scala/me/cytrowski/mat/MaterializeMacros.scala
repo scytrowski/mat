@@ -555,23 +555,30 @@ private[mat] object MaterializeMacros:
         case repr :: Nil =>
           repr.asType match
             case '[reprType] =>
-              Some {
-                if repr.typeSymbol.flags.is(Flags.Module) then
-                  Right(
-                    (
-                      repr,
-                      Ref(repr.typeSymbol.companionModule).asExpr
+              Some(
+                derive[reprType] match
+                  case success @ Right(_) => success
+                  case Left(_)
+                      if repr.typeSymbol.flags.is(Flags.Module) &&
+                        symbol.companionModule.flags.is(Flags.Module) &&
+                        symbol.companionModule ==
+                        repr.typeSymbol.companionModule =>
+                    // A same-named case object can be mirrored as its parent trait.
+                    Right(
+                      (
+                        repr,
+                        Ref(repr.typeSymbol.companionModule).asExpr
+                      )
                     )
-                  )
-                else
-                  derive[reprType].left.map { error =>
-                    MaterializeError.SingleVariant(
-                      owner.show,
-                      TypeRepr.of[reprType].show,
-                      error
+                  case Left(error) =>
+                    Left(
+                      MaterializeError.SingleVariant(
+                        owner.show,
+                        TypeRepr.of[reprType].show,
+                        error
+                      )
                     )
-                  }
-              }
+              )
         case _ => Some(Left(unsupportedType[A]))
     else
       val childResults = variants.filter(_ <:< owner).map { variantType =>

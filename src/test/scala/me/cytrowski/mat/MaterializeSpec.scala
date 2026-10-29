@@ -11,6 +11,8 @@ private object Issue10Parameter {
   sealed trait Concrete extends Issue10Parameter
   case object Concrete extends Concrete
 }
+private sealed trait ExplicitSingletonRoot
+private case object ExplicitSingletonLeaf extends ExplicitSingletonRoot
 
 class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
 
@@ -741,6 +743,24 @@ class MaterializeSpec extends AnyFlatSpec with Matchers with OptionValues {
 
     evidence() mustBe 1
     evidence() mustBe 2
+    applications mustBe 2
+  }
+
+  it should "preserve by-name explicit evidence for a singleton sum variant" in {
+    var applications = 0
+    given Materialize.Aux[
+      ExplicitSingletonLeaf.type,
+      ExplicitSingletonLeaf.type
+    ] = Materialize.fromValue {
+      applications += 1
+      ExplicitSingletonLeaf
+    }
+
+    val first: ExplicitSingletonLeaf.type = materialize[ExplicitSingletonRoot]
+    val second: ExplicitSingletonLeaf.type = materialize[ExplicitSingletonRoot]
+
+    first mustBe ExplicitSingletonLeaf
+    second mustBe ExplicitSingletonLeaf
     applications mustBe 2
   }
 
