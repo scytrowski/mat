@@ -12,7 +12,7 @@ ThisBuild / scalaVersion := "3.9.0" // renovate: datasource=github-releases depN
 ThisBuild / crossScalaVersions := Seq(
   "3.8.4", // renovate: datasource=github-releases depName=scala/scala3
   "3.9.0", // renovate: datasource=github-releases depName=scala/scala3
-  "3.10.0" // renovate: datasource=github-releases depName=scala/scala3
+  "3.10.1" // renovate: datasource=github-releases depName=scala/scala3
 )
 // Scala 3.8.x, 3.9.x and 3.10.x share the `_3` artifact suffix. Cross-build
 // all supported versions for validation, but publish one artifact to avoid
